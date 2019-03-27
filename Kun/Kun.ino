@@ -42,10 +42,11 @@ char code(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
 
 void ancho() {
   float lim = 0;
-  for (int i = 1; i < MAX - 1; i++) { //Media
+  /*for (int i = 1; i < MAX - 1; i++) { //Media
     lim += Tiempos[i];
-  }
-  lim = lim / (MAX - 2);
+  } 
+  lim = lim / (MAX - 2);*/
+  lim = (Tiempos[6]+Tiempos[7]+Tiempos[8]+Tiempos[9]+Tiempos[21]+Tiempos[22]+Tiempos[23]+Tiempos[24])/8
   for (int i = 1; i < MAX - 1; i++) { //Diferenciar largo corto
     largo[i - 1] = (Tiempos[i] > lim);
   }
