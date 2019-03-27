@@ -11,12 +11,6 @@ volatile float filtr = 0;
 volatile long int dif = 0;
 volatile long int lastIn = 0;
 
-volatile int difference = 0;
-volatile int lastPos = 0;
-
-volatile bool pulsDir = 0;
-volatile int count = 0;
-
 #define Kfiltr 0.95
 void encoder() {
   if (dir) pos++;
@@ -25,20 +19,13 @@ void encoder() {
   dif = now - past;
   filtr = (1-Kfiltr)*dif + Kfiltr *filtr;
 
-  if (count > 0) {
-    pulsDir = !pulsDir;
-    digitalWrite(DIR,!digitalRead(DIR));   
-    count = -1;
-  }else if (count > 0) count++;
-  
   if ( dif > 2*filtr) {
     if (millis() - lastIn > 300) {
-      dir = !dir;  count = 1;
-      
+      dir = !dir;    
       lastIn = millis();
     }
   }
-
+  
   past = now;
 }
 
@@ -58,24 +45,15 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(SEN),sense,RISING);
   pinMode(DIR,OUTPUT);
   pinMode(ENA,OUTPUT);
-
-
-  digitalWrite(ENA,1);
-
-  while(abs(pos)  < 8) {
-    digitalWrite(DIR,sin(5.5*(millis()/1000.0)) >0 );
-  }
-
-  
 }
 
 
-int duty = 0;
+double phi = 0; double omega = 1;
 long int pocoPoco = 0;
-
 void loop() {
+  int duty = 255*cbrt(sin(omega*(millis()/1000.0)+phi));
   if (Serial.available() > 0) {
-    duty = Serial.parseInt(); Serial.parseInt();
+    phi = Serial.parseFloat(); omega = Serial.parseFloat(); Serial.parseFloat();
   }
   if ( millis() - nowInter > 1 && flag) {
     if (digitalRead(SEN))  {
@@ -83,15 +61,11 @@ void loop() {
     }
     flag = 0;
   }
-
- // analogWrite(ENA,abs(duty));
- // digitalWrite(DIR,duty > 0);
+  analogWrite(ENA,abs(duty));
+  digitalWrite(DIR,duty > 0);
 
   if (millis() - pocoPoco > 5) {
-      Serial.print(pos); Serial.print(" "); Serial.print(dir*100-50); Serial.print(" "); Serial.println(pulsDir*100-50);
+      Serial.println(pos);
       pocoPoco = millis();
-      difference = pos - lastPos;
-      lastPos = pos;
-
   }
 }

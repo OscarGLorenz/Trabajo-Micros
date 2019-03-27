@@ -15,7 +15,7 @@ volatile int difference = 0;
 volatile int lastPos = 0;
 
 volatile bool pulsDir = 0;
-volatile int count = 0;
+
 
 #define Kfiltr 0.95
 void encoder() {
@@ -25,16 +25,10 @@ void encoder() {
   dif = now - past;
   filtr = (1-Kfiltr)*dif + Kfiltr *filtr;
 
-  if (count > 0) {
-    pulsDir = !pulsDir;
-    digitalWrite(DIR,!digitalRead(DIR));   
-    count = -1;
-  }else if (count > 0) count++;
-  
   if ( dif > 2*filtr) {
     if (millis() - lastIn > 300) {
-      dir = !dir;  count = 1;
-      
+      dir = !dir; 
+      digitalWrite(DIR,!digitalRead(DIR));   
       lastIn = millis();
     }
   }
@@ -88,7 +82,7 @@ void loop() {
  // digitalWrite(DIR,duty > 0);
 
   if (millis() - pocoPoco > 5) {
-      Serial.print(pos); Serial.print(" "); Serial.print(dir*100-50); Serial.print(" "); Serial.println(pulsDir*100-50);
+      Serial.print(pos); Serial.print(" "); Serial.println(dir*100-50);
       pocoPoco = millis();
       difference = pos - lastPos;
       lastPos = pos;
