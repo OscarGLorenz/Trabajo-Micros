@@ -8,6 +8,8 @@ uint8_t ancho02;
 uint8_t ancho03;
 uint8_t total;
 float rel;
+float rel_max = 0;
+float rel_min = 0;
 
 void sensor_S02() {
   if (digitalRead(S02)) {
@@ -33,7 +35,9 @@ void sensor_S03() {
     Serial.print(String(total) + "   ");
     Serial.println("Medida relativa: ");
     rel = float(ancho03)/dly;
-    Serial.print(String(rel) + "   ");
+    if(rel > rel_max) rel_max = rel;
+    else if(rel < rel_min) rel_min = rel;
+    Serial.print(String(rel) + "   " + "Max: " + String(rel_max) + "   " + "Min: " + String(rel_min));
   }
 }
 
