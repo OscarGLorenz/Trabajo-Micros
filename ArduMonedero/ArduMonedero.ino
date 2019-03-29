@@ -1,29 +1,16 @@
-#include <Arduino.h>
-#include "macros.h"
+// Main file for coin collector
 
-#define DEBUG
 
-// Defines #########################################################
 
-// Naming > connector
-#define SO2 PIN_21
-#define SO3 PIN_23
-#define SW2 PIN_31
-#define M1_en PIN_26
-#define M1_bk PIN_24  
-#define L2  PIN_22
+// Precompiler definitions #########################################
+#include <Arduino.h>  // For Serial standard functions
+#include "macros.h"   // For macros, some of them ported from Marlin
+#include "pindef.h"   // Check pin definition in "pindef.h"
+#define DEBUG         // Uncomment for serial debugging
 
-// Connector > Arduino
-#define PIN_21  2
-#define PIN_23  3
-#define PIN_31  4
-#define PIN_26  5
-#define PIN_24  6
-#define PIN_22  7
-
-// Global variables #################################################
-int queue;
-int paymentMoney;
+// Global variables ################################################
+uint8_t queue;
+uint8_t paymentMoney;
 
 // Monedas: 10c, 20c, 50c, 1e
 const float ratio_limits[] = {0.5, 0.8, 0.9, 1.0, 2.2};
@@ -31,9 +18,9 @@ const float ratio_limits[] = {0.5, 0.8, 0.9, 1.0, 2.2};
 uint8_t time_SO2, time_SO3, width_SO2, width_SO3, delay_SO;
 float ratio_SO;
 
-// Interrupt Service Routines #######################################
+// Interrupt Service Routines ######################################
 
-void ISR_SO2(){
+void ISR_SO2(){   // ISR of first optic sensor
   if (digitalRead(SO2)){
     time_SO2 = millis();
   }
@@ -42,7 +29,7 @@ void ISR_SO2(){
   }
 }
 
-void ISR_SO3(){
+void ISR_SO3(){   // ISR of second optic sensor
   if (digitalRead(SO3)){
     time_SO3 = millis();
     delay_SO = time_SO3 - time_SO2;
@@ -60,13 +47,15 @@ void ISR_SO3(){
 }
 
 
-// Functions #########################################################
+// Functions #######################################################
 
-void newCoin(float ratio){
+void newCoin(float ratio){    // Compares ratio with valid ranges
+  uint8_t cents;
   
+  coinAccepted(cents);
 }
 
-void coinAccepted(int cents){
+void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
   paymentMoney += cents;
   if (paymentMoney >= 120){
     paymentAccepted();
@@ -82,12 +71,12 @@ void coinAccepted(int cents){
   
 }
 
-void paymentAccepted(){
+void paymentAccepted(){   // New payment completed, add 1 to queue
   paymentMoney = 0;
   queue++;
 }
 
-void setup() {  // ###################################################
+void setup() {  // #################################################
   Serial.begin(9600);
   
   pinMode(SO2, INPUT);
@@ -104,5 +93,5 @@ void setup() {  // ###################################################
   paymentMoney = 0;
 }
 
-void loop() {  // ####################################################
+void loop() {  // ##################################################
 }
