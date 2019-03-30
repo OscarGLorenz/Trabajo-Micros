@@ -5,17 +5,6 @@
 
 #include <Arduino.h>
 
-/*
- * Macros to transform STATIC Serial.prints
- * Save a lot of SRAM! Must have at least 1 character
- */
-#ifndef Sprint(x)
-  #define Sprint(x)       (Serial.print(F(x)))
-#endif
-#ifndef Sprintln(x)
-  #define Sprintln(x)     (Serial.println(F(x)))
-#endif
-
 #undef DEBUG(x)
 #define DEBUG(x) Serial.println(String(#x) + " = " + String(x))
 /* Prints to serial the name and value of the given variable.

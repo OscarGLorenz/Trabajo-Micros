@@ -1,24 +1,10 @@
 /**
- * Some of the macros were ported from
- * Marlin 3D Printer Firmware
+ * Macros ported from Marlin 3D Printer Firmware
  * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  */
 
-#ifndef _MACROS_H
-#define _MACROS_H
-
-#include <Arduino.h>
-
-/*
- * Macros to transform STATIC Serial.prints
- * Save a lot of SRAM! Must have at least 1 character
- */
-#ifndef Sprint(x)
-  #define Sprint(x)       (Serial.print(F(x)))
-#endif
-#ifndef Sprintln(x)
-  #define Sprintln(x)     (Serial.println(F(x)))
-#endif
+#ifndef _MACROS_ALL_H
+#define _MACROS_ALL_H
 
 #define FORCE_INLINE __attribute__((always_inline)) inline
 #define _UNUSED      __attribute__((unused))
@@ -212,4 +198,4 @@
 #define FMOD(x, y)  fmodf(x, y)
 #define HYPOT(x,y)  SQRT(HYPOT2(x,y))
 
-#endif // _MACROS_H
+#endif // _MACROS_ALL_H
