@@ -26,11 +26,10 @@
 #endif
 
 // Macros for bit masks
-#undef _BV
-#define _BV(b) (1 << (b))
-#define TEST(n,b) !!((n)&_BV(b))
-#define SBI(n,b) (n |= _BV(b))
-#define CBI(n,b) (n &= ~_BV(b))
-#define SET_BIT_TO(N,B,TF) do{ if (TF) SBI(N,B); else CBI(N,B); }while(0)
+#define BITSHIFT(pos) (1 << (pos))
+#define BITSET(reg,pos) (reg |= BITSHIFT(pos))
+#define BITCLEAR(reg,pos) (reg &= ~BITSHIFT(pos))
+#define BITWRITE(reg,pos,value) (value ? BITSET(reg,pos) : BITCLEAR(reg,pos))
+#define BITREAD(reg, pos) ((reg >> pos) & 0x01)
 
 #endif // _MACROS_H
