@@ -1,8 +1,8 @@
-#indef __PINOUT__
+#ifndef __PINOUT__
 #define __PINOUT__
 
 #include <avr/io.h>
-#include <avr/interrupts.h>
+#include <avr/interrupt.h>
 
 #define SO1 INT0
 #define SO2 INT1
