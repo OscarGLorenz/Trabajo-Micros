@@ -5,7 +5,7 @@
 #include "../charpy/time.h"
 #include "../charpy/pinout.h"
 
-using namespace charpy;
+using namespace charpy::time;
 
 
 volatile int pos = 0;
@@ -23,22 +23,25 @@ volatile bool pulsDir = 0;
 #define Kfiltr 0.95
 
 
-
+volatile bool changedDir = false;
 ISR(INT3_vect) {
-        PORTL^= (1 << L1);
+        tbi(OUTRUT,L1);
 
         if (dir) pos++;
         else pos--;
-        now = time::millis();
+        now = millis();
         dif = now - past;
         filtr = (1-Kfiltr)*dif + Kfiltr *filtr;
 
-        if ( dif > 2*filtr) {
-            if (now - lastIn > 300) {
+        if ( dif > 2*filtr && !changedDir) {
+            //if (now - lastIn > 300) {
+                changedDir = true;
                 dir = !dir;
-                PORTL ^= (1 << M2_di); // Toggle M2_dir
-                lastIn = now;
-            }
+                tbi(OUTRUT,M2_di); // Toggle M2_dir
+             //   lastIn = now;
+            //}
+        } else if ( dif < 2*filtr && changedDir) {
+            changedDir = false;
         }
 
         past = now;
@@ -48,14 +51,14 @@ ISR(INT3_vect) {
 volatile bool flag = 0;
 volatile long int nowInter = 0;
 ISR(PCINT0_vect) {
-    if (PINB & (1 << SO5)) {
+    if (rbi(PINRUT,SO5)) {
             flag = 1;
-            nowInter = time::millis();
+            nowInter = millis();
     }
 }
 
 void setup() {
-    DDRL = 0xFF;
+    OUTRUT_DDR = 0xFF;
 
     cli();
 
@@ -72,44 +75,44 @@ void setup() {
     sei();
 
 
-    sbi(PORTL,M2_en);
+    sbi(OUTRUT,M2_en);
 
     while(pos < 8) {
-        if (sin(5.5*(time::millis()/1000.0)) >0)
-            sbi(PORTL,M2_di);
+        if (sin(5.5*(millis()/1000.0)) >0)
+            sbi(OUTRUT,M2_di);
         else
-            cbi(PORTL,M2_di);
+            cbi(OUTRUT,M2_di);
     }
 
-    sbi(PORTL, L2);
+    sbi(OUTRUT, L2);
 
 }
 
 
 int duty = 0;
-long int pocoPoco = 0;
+//long int pocoPoco = 0;
 
 
 void loop() {
-    if ( time::millis() - nowInter > 1 && flag) {
-        if (PINB & (1 << SO5))  {
+    if ( millis() - nowInter > 1 && flag) {
+        if (rbi(PINRUT,SO5))  {
             pos = 0;
         }
         flag = 0;
     }
 
-    if (time::millis() - pocoPoco > 5) {
-        pocoPoco = time::millis();
-        difference = pos - lastPos;
-        lastPos = pos;
-    }
+//    if (millis() - pocoPoco > 5) {
+//        pocoPoco = millis();
+//        difference = pos - lastPos;
+//        lastPos = pos;
+//    }
 
 }
 
 
 
 int main() {
-    time::init();
+    init();
     setup();
 
     for(;;)
