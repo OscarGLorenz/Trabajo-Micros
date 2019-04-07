@@ -2,10 +2,9 @@
 #include <avr/interrupt.h>
 #include <math.h>
 
+#include "../charpy/macros.h"
 #include "../charpy/time.h"
 #include "../charpy/pinout.h"
-
-using namespace charpy::time;
 
 
 volatile int pos = 0;
@@ -112,7 +111,7 @@ void loop() {
 
 
 int main() {
-    init();
+    initTime();
     setup();
 
     for(;;)

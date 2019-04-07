@@ -1,5 +1,5 @@
-#ifndef __PINOUT__
-#define __PINOUT__
+#ifndef PINOUT_H_
+#define PINOUT_H_
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -29,14 +29,5 @@
 #define OUTRUT_DDR DDRB
 
 #define PINRUT PINB
-
-// Clear bit on port
-#define cbi(PORT,PIN) (PORT&= ~(1<<PIN))
-// Set bit on port
-#define sbi(PORT,PIN) (PORT|=(1<<PIN))
-// Toggle bit on port
-#define tbi(PORT,PIN) (PORT^=(1<<PIN))
-// Read bit on port
-#define rbi(PORT,PIN) ((PORT & (1<<PIN)) != 0)
 
 #endif
