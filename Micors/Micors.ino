@@ -66,7 +66,12 @@ void Traduce(){
   for(int i =1; i<NUM_TOTAL_RAYITAS-4; i=i+4){
     Serial.print(code(traducidoh[i],traducidoh[i+1],traducidoh[i+2],traducidoh[i+3]));
   }
-  Serial.println("");
+  Serial.println("\n Deduzco que es la tarjeta:");
+  Serial.print(":+");
+    for(int i =9; i<(NUM_TOTAL_RAYITAS-8); i=i+4){
+    Serial.print(code(traducidoh[i],traducidoh[i+1],traducidoh[i+2],traducidoh[i+3]));
+  }
+  Serial.println("-");
 }
 
 

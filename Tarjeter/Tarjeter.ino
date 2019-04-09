@@ -9,7 +9,7 @@
 
 #include "Functions.h"
 
-#define INTERRUPT_PIN 21
+#define INTERRUPT_PIN 3
 #define MAX 26
 
 int   Counter=0;
@@ -34,9 +34,9 @@ void width() {
 
 void kun() {
   if (!digitalRead(INTERRUPT_PIN))
-    Timer = microsec();
+    Timer = micros();
   else {
-    Timer = microsec() - Timer;
+    Timer = micros() - Timer;
     Serial.println(Timer);
   }
   Times[Counter] = Timer;
@@ -51,8 +51,8 @@ void setup() {
 }
 
 void loop() {
-  if(counter==MAX){
-    ancho();
-    counter = 0;
+  if(Counter==MAX){
+    width();
+    Counter = 0;
   }
 }
