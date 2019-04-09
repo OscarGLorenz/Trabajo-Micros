@@ -1,4 +1,4 @@
-#ifdef MACROS_H_
+#ifndef MACROS_H_
 #define MACROS_H_
 
 // Clear bit on port

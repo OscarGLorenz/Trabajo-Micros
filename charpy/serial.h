@@ -1,14 +1,15 @@
-#ifdef SERIAL_H_
+#ifndef SERIAL_H_
 #define SERIAL_H_
 
-#define F_CPU 16000000
+#define F_CPU 8000000
+#include "macros.h"
+
 void serialBegin(unsigned long baud) {  
   // Fast mode
-  sbi(UCSR2A,U2X0);
+  sbi(UCSR2A,U2X2);
 
-  // Enable rx and tx. Enable receive interrupt
-  sbi(UCSR2B,RXEN2);
-  sbi(UCSR2B,TXEN2); 
+  // Enable transmit
+  sbi(UCSR2B,TXEN2);
    
   // 8 bit, no parity, asyncronous and 1 stop bit
   sbi(UCSR2C,UCSZ20); 
@@ -21,7 +22,7 @@ void serialBegin(unsigned long baud) {
 
 void serialWrite(char data) {
   while (!rbi(UCSR2A,UDRE2)); // Wait until register is empty
-  UDR0 = data;
+  UDR2 = data;
 
 }
 
@@ -30,4 +31,13 @@ void serialPrint(const char * str) {
     serialWrite(str[i]);
 }
 
+void serialPrintLn(const char * str) {
+    serialPrint(str);
+    serialWrite('\n');
+}
+
+void serialPrintTab(const char * str) {
+    serialPrint(str);
+    serialWrite('\t');
+}
 #endif

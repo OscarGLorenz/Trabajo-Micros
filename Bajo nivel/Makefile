@@ -1,7 +1,9 @@
 CC = avr-g++
-CFLAGS = -Wall -g -0s
-
+CFLAGS = -Wall -g -Os
+MCU = atmega640
+AVRDUDEMCU = m640
+PROGRAMMER = dragon_jtag
 main:
-    $(CC) $(CFLAGS) -mmcu=atmega640 -o main.bin main.c
-    avr-objcopy -j .text -j .data -0 ihex main.bin main.hex
-    avrdude -c dragon_jtag -p m640 flash:w:"main.c":a
+	$(CC) $(CFLAGS) -mmcu=$(MCU) -o main.bin main.c
+	avr-objcopy -j .text -j .data -O ihex main.bin main.hex
+	avrdude -c $(PROGRAMMER) -p $(AVRDUDEMCU) -U flash:w:"main.hex":a
