@@ -1,10 +1,11 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <math.h>
-
+#include <stdio.h>
 #include "../charpy/macros.h"
 #include "../charpy/time.h"
 #include "../charpy/pinout.h"
+#include "../charpy/serial.h"
 
 
 volatile int pos = 0;
@@ -17,14 +18,19 @@ volatile long int lastIn = 0;
 
 volatile int difference = 0;
 volatile int lastPos = 0;
+volatile int dif_1 = 0;
+volatile int dif_2 = 0;
 
 volatile bool pulsDir = 0;
 #define Kfiltr 0.95
 
 
 volatile bool changedDir = false;
+
+enum mode_t {START,ACCEL,BRAKE};
+enum mode_t mode = START;
+
 ISR(INT3_vect) {
-        tbi(OUTRUT,L1);
 
         if (dir) pos++;
         else pos--;
@@ -32,13 +38,13 @@ ISR(INT3_vect) {
         dif = now - past;
         filtr = (1-Kfiltr)*dif + Kfiltr *filtr;
 
-        if ( dif > 2*filtr && !changedDir) {
-            //if (now - lastIn > 300) {
+        if ( dif > 1.8*filtr && !changedDir) {
+            if (now - lastIn >  500) {
                 changedDir = true;
                 dir = !dir;
                 tbi(OUTRUT,M2_di); // Toggle M2_dir
-             //   lastIn = now;
-            //}
+                lastIn = now;
+            }
         } else if ( dif < 2*filtr && changedDir) {
             changedDir = false;
         }
@@ -50,14 +56,19 @@ ISR(INT3_vect) {
 volatile bool flag = 0;
 volatile long int nowInter = 0;
 ISR(PCINT0_vect) {
-    if (rbi(PINRUT,SO5)) {
+
+        if (rbi(PINB,PB0)) {
+            tbi(OUTRUT,L1);
+
             flag = 1;
             nowInter = millis();
-    }
+        }
 }
 
 void setup() {
-    OUTRUT_DDR = 0xFF;
+    while (rbi(PINK,SW1));
+
+    DDRL = 0xFF;
 
     cli();
 
@@ -69,42 +80,63 @@ void setup() {
     sbi(EIMSK, SO4);
 
     // Enable PCINT0
-    sbi(PCMSK0, SO5);
+    sbi(PCICR, PCIE0);
+    sbi(PCMSK0, PCINT0);
 
     sei();
 
 
     sbi(OUTRUT,M2_en);
 
-    while(pos < 8) {
-        if (sin(5.5*(millis()/1000.0)) >0)
-            sbi(OUTRUT,M2_di);
-        else
-            cbi(OUTRUT,M2_di);
-    }
 
-    sbi(OUTRUT, L2);
+    serialBegin(9600);
+
+
 
 }
 
 
 int duty = 0;
-//long int pocoPoco = 0;
+long int pocoPoco = 0;
 
 
 void loop() {
-    if ( millis() - nowInter > 1 && flag) {
-        if (rbi(PINRUT,SO5))  {
-            pos = 0;
-        }
-        flag = 0;
+    switch(mode) {
+        case START:
+            if(pos < 10) {
+                if (millis()%1200 > 1200/2)
+                    sbi(OUTRUT,M2_di);
+                else
+                    cbi(OUTRUT,M2_di);
+            } else {
+                mode = ACCEL;
+                sbi(OUTRUT, L2);
+            }
+            break;
+
+        case ACCEL:
+            if ( millis() - nowInter > 1 && flag) {
+                if (rbi(PINB,PB0)) {
+                    pos = 0;
+                }
+                flag = 0;
+            }
+            break;
     }
 
-//    if (millis() - pocoPoco > 5) {
-//        pocoPoco = millis();
-//        difference = pos - lastPos;
-//        lastPos = pos;
-//    }
+    if (millis() - pocoPoco > 5) {
+        pocoPoco = millis();
+        //serialPrintFloat((float) pos);
+        serialPrintFloat(1.8*filtr);
+
+        serialWrite(' ');
+        serialPrintFloat(dif);
+        serialWrite(' ');
+
+        serialPrintFloat((dir) ? 50.0 : -50.0);
+        serialWrite('\n');
+        lastPos = pos;
+    }
 
 }
 

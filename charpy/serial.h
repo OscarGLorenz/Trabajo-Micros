@@ -3,6 +3,7 @@
 
 #define F_CPU 8000000
 #include "macros.h"
+#include <stdlib.h>
 
 void serialBegin(unsigned long baud) {  
   // Fast mode
@@ -23,7 +24,6 @@ void serialBegin(unsigned long baud) {
 void serialWrite(char data) {
   while (!rbi(UCSR2A,UDRE2)); // Wait until register is empty
   UDR2 = data;
-
 }
 
 void serialPrint(const char * str) {
@@ -36,8 +36,16 @@ void serialPrintLn(const char * str) {
     serialWrite('\n');
 }
 
-void serialPrintTab(const char * str) {
-    serialPrint(str);
-    serialWrite('\t');
+void serialPrintInt(int i) {
+    char buf[10];
+    itoa(i,buf,10);
+    serialPrint(buf);
 }
+
+void serialPrintFloat(float f) {
+    char buf[10];
+    dtostrf(f,8,4,buf);
+    serialPrint(buf);
+}
+
 #endif
