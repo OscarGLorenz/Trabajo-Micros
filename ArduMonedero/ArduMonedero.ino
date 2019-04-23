@@ -3,8 +3,9 @@
 // Precompiler definitions #########################################
 #include <Arduino.h>  // For Serial standard functions
 #include "macros.h"   // For macros, some of them ported from Marlin
-#include "pindef.h"   // Check pin assignment in "pindef.h"
-#define DEBUG         // Uncomment for serial debugging
+#include "pindef.h"   // Check pin assignment in "pindef.h
+#include "default_coin_limits.h"  // Load pre-calibrated limits for coin detection
+//#define DEBUG         // Uncomment for serial debugging
 
 // Global variables ################################################
 
@@ -12,29 +13,14 @@
 uint8_t queue;
 uint8_t payment_money;
 
-// Detection variables
-
+// Detection variables --------------
 unsigned long int time_SO2, time_SO3;
 uint8_t width_SO2, width_SO3, delay_SO, total_SO;
 
-struct ratios {
-  float w3_d;
-  float w3_t;
-};
-
-struct coin_params { 
-  ratios mins;
-  ratios maxs;
-};
-
+//Flags ------------------------------
 uint8_t new_coin;
-uint8_t configure, configure_coin;
-
-// Coin characterization   1c      2c      10c     5c      20c     50c     1e      2e
-coin_params coins[8];
+uint8_t calibrate, calibrate_coin;
 uint8_t coin_id;
-// float ratiosW3_d[8] = {}; //= {0.40,   0.45,   0.50,   0.60,   0.80,   0.90,   1.00,   2.20,   2.60};
-// float ratiosW3_t[8] = {};
 
 // Interrupt Service Routines ######################################
 
@@ -60,14 +46,27 @@ void ISR_SO3(){   // ISR of second optic sensor
 
 // Functions #######################################################
 
+void serialWelcome(){
+  Sprintln("Avaliable commands:");
+  Sprintln("CALIBRATE - Calibrate ratios limits for specific coin type");
+  Sprintln("RUN - Exic calibration mode");
+  Sprintln("When in CALIB mode, [value in cents] calibrates that coin type");
+  serialPrintLimits();
+}
+
 void serialWatchdog(){
   if (Serial.available()){
     String command = Serial.readString();
-    if (command.equalsIgnoreCase("CONFIGURE")) configure = 1;
-    else if (command.equalsIgnoreCase("RUN")) configure = 0;
+    Sprint("Command received: ");
+    Serial.println(command);
+    if (command.equalsIgnoreCase("CALIBRATE")) calibrate = 1;
+    else if (command.equalsIgnoreCase("RUN")) calibrate = 0;
     else {
-      configure_coin = command.toInt();
-      switch(configure_coin) {
+      calibrate_coin = command.toInt();
+      Sprint("Will calibrate coin of ");
+      Serial.print(command);
+      Sprintln(" cents.");
+      switch(calibrate_coin) {
         case 1: coin_id = 0; break;
         case 2: coin_id = 1; break;
         case 5: coin_id = 2; break;
@@ -81,54 +80,64 @@ void serialWatchdog(){
   }
 }
 
+void serialPrintLimits(){
+  Sprintln("Now coin ratios limits are:");
+  Sprintln("\t\t1c\t2c\t5c\t10c\t20c\t50c\t1e\t2e");
+  Sprint("w3/d min:\t");
+  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_d); Sprint("\t");}
+  Sprint("w3/d max:\t");
+  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_d); Sprint("\t");}
+  Sprint("w3/t min:\t");
+  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_t); Sprint("\t");}
+  Sprint("w3/t max:\t");
+  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");}
+}
+
+void resetLimit(coin_params* coin){
+  coin->min.w3_d = 100;
+  coin->max.w3_d = 0.0;
+  coin->min.w3_t = 100;
+  coin->max.w3_t = 0.0;
+}
+
 void newCoin(){    // Compares ratio with valid ranges
   uint8_t delay_SO = uint8_t(time_SO3 - time_SO2);
   uint8_t total_SO = delay_SO + width_SO3;
-  ratios coin_ratios;
-  coin_ratios.w3_d = float(width_SO3) / delay_SO;
-  coin_ratios.w3_t = float(width_SO3) / total_SO;
-  if (configure) adjustCoin(coin_ratios);
-  else compareCoin(coin_ratios);
+  coin_ratios ratios;
+  ratios.w3_d = float(width_SO3) / delay_SO;
+  ratios.w3_t = float(width_SO3) / total_SO;
+  Sprint("New coin introduced, type ");
+  Serial.println(coin_id);
+  Sprint("widthO3/delay = ");
+  Serial.println(ratios.w3_d);
+  Sprint("widthO3/total = ");
+  Serial.println(ratios.w3_t);
+  if (calibrate) adjustCoin(ratios);
+  else compareCoin(ratios);
 }
 
-void adjustCoin(ratios coin_ratios){
-  
+void adjustCoin(coin_ratios ratios){
+  if(coins[coin_id].min.w3_d > ratios.w3_d) coins[coin_id].min.w3_d = ratios.w3_d;
+  if(coins[coin_id].max.w3_d < ratios.w3_d) coins[coin_id].max.w3_d = ratios.w3_d;
+  if(coins[coin_id].min.w3_t < ratios.w3_t) coins[coin_id].min.w3_t = ratios.w3_t;
+  if(coins[coin_id].max.w3_t < ratios.w3_t) coins[coin_id].max.w3_t = ratios.w3_t;
 }
 
-void compareCoin(ratios coin_ratios){
+void compareCoin(coin_ratios ratios){
   uint8_t cents;
-  #ifdef DEBUG
-      Serial.println("New coin detected, ratio is " + String(coin_ratios.w3_d));
-    #endif
-    /*
-  if ((ratio < ratio_limits[0]) || (ratio > ratio_limits[8])) {
-    cents = 0;                // Object detected out of range
+  if ((ratios.w3_d < coins[0].min.w3_d) || (ratios.w3_d > coins[7].max.w3_d)) {
+    cents = 0;            // Object detected out of range
+    Sprintln("Coin not detected in pre-calibrated ranges, try again");
   }
-  else if ((ratio >= ratio_limits[0]) && (ratio < ratio_limits[1])) {
-    cents = 1;                // Object detected as 1c coin
-  }
-  else if ((ratio >= ratio_limits[1]) && (ratio < ratio_limits[2])) {
-    cents = 2;                // Object detected as 2c coin
-  }
-  else if ((ratio >= ratio_limits[2]) && (ratio < ratio_limits[3])) {
-    cents = 10;               // Object detected as 10c coin
-  }
-  else if ((ratio >= ratio_limits[3]) && (ratio < ratio_limits[4])) {
-    cents = 5;                // Object detected as 5c coin
-  }
-  else if ((ratio >= ratio_limits[4]) && (ratio < ratio_limits[5])) {
-    cents = 20;               // Object detected as 20c coin
-  }
-  else if ((ratio >= ratio_limits[5]) && (ratio < ratio_limits[6])) {
-    cents = 50;               // Object detected as 50c coin
-  }
-  else if ((ratio >= ratio_limits[5]) && (ratio < ratio_limits[7])) {
-    cents = 100;              // Object detected as 100c coin
-  }
-  else if ((ratio >= ratio_limits[5]) && (ratio < ratio_limits[8])) {
-    cents = 200;              // Object detected as 200c coin
-  }
-  */
+  else if ((ratios.w3_d >= coins[0].min.w3_d) && (ratios.w3_d <= coins[0].max.w3_d)) cents = 1;     // Object detected as 1c coin
+  else if ((ratios.w3_d >= coins[1].min.w3_d) && (ratios.w3_d <= coins[1].max.w3_d)) cents = 2;     // Object detected as 2c coin
+  else if ((ratios.w3_d >= coins[2].min.w3_d) && (ratios.w3_d <= coins[2].max.w3_d)) cents = 5;     // Object detected as 5c coin
+  else if ((ratios.w3_d >= coins[3].min.w3_d) && (ratios.w3_d <= coins[3].max.w3_d)) cents = 10;    // Object detected as 10c coin
+  else if ((ratios.w3_d >= coins[4].min.w3_d) && (ratios.w3_d <= coins[4].max.w3_d)) cents = 20;    // Object detected as 20c coin
+  else if ((ratios.w3_d >= coins[5].min.w3_d) && (ratios.w3_d <= coins[5].max.w3_d)) cents = 50;    // Object detected as 50c coin
+  else if ((ratios.w3_d >= coins[6].min.w3_d) && (ratios.w3_d <= coins[6].max.w3_d)) cents = 100;   // Object detected as 100c coin
+  else if ((ratios.w3_d >= coins[7].min.w3_d) && (ratios.w3_d <= coins[7].max.w3_d)) cents = 200;   // Object detected as 200c coin
+  else Sprintln("Unknown error");
   if ((cents > 5) && (cents < 200)){    // Accepted coins condition
     coinAccepted(cents);
   }
@@ -136,16 +145,20 @@ void compareCoin(ratios coin_ratios){
 
 void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
   payment_money += cents;     // Add coin value to money of payment in progress
-  #ifdef DEBUG            // Debug money introduced
-    Serial.print("New coin accepted: " + String(cents));
-    Serial.println(", inserted money: " + String(payment_money));
-  #endif
+  if (Serial){            // Debug money introduced
+    Sprint("New coin accepted: ");
+    Serial.print(cents);
+    Sprintln(" cents, total inserted money: ");
+    Serial.println(payment_money);
+  }
   if (payment_money >= 120){
     queue++;
-    #ifdef DEBUG            // Debug people in queue
-      Serial.print("New payment completed: " + String(payment_money));
-      Serial.println(", people in queue: " + String(queue));
-    #endif
+    if (Serial){            // Debug people in queue
+      Sprint("New payment completed: ");
+      Serial.print(payment_money);
+      Sprint(" cents, people in queue: ");
+      Serial.println(queue);
+    }
     payment_money = 0;
   }
   openCollector();  
@@ -183,11 +196,14 @@ void setup() {  // #################################################
   attachInterrupt(digitalPinToInterrupt(SO2), ISR_SO2, CHANGE);
   attachInterrupt(digitalPinToInterrupt(SO2), ISR_SO3, CHANGE);
 
+  loadDefaultLimits();
+  
   Serial.begin(9600);
+  if (Serial) serialWelcome();
   
   digitalWrite(M1_bk, HIGH);
 
-  configure = false;
+  calibrate = false;
   new_coin = false;
   payment_money = 0;
   queue = 0;
