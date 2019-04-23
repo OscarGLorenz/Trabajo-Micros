@@ -13,19 +13,35 @@ uint8_t queue;
 uint8_t payment_money;
 
 // Detection variables
-unsigned long int time_SO2, time_SO3;
-uint8_t width_SO2, width_SO3, delay_SO;
-float ratio_SO;
-uint8_t pending_coin;
 
-// Coin characterization           1c      2c      10c     5c      20c     50c     1e      2e
-const float ratio_limits[] = {0.40,   0.45,   0.50,   0.60,   0.80,   0.90,   1.00,   2.20,   2.60};
+unsigned long int time_SO2, time_SO3;
+uint8_t width_SO2, width_SO3, delay_SO, total_SO;
+
+struct ratios {
+  float w3_d;
+  float w3_t;
+};
+
+struct coin_params { 
+  ratios mins;
+  ratios maxs;
+};
+
+uint8_t new_coin;
+uint8_t configure, configure_coin;
+
+// Coin characterization   1c      2c      10c     5c      20c     50c     1e      2e
+coin_params coins[8];
+uint8_t coin_id;
+// float ratiosW3_d[8] = {}; //= {0.40,   0.45,   0.50,   0.60,   0.80,   0.90,   1.00,   2.20,   2.60};
+// float ratiosW3_t[8] = {};
 
 // Interrupt Service Routines ######################################
 
 void ISR_SO2(){   // ISR of first optic sensor
   if (digitalRead(SO2)){
     time_SO2 = millis();
+    new_coin = false;
   }
   else {
     width_SO2 = uint8_t(millis() - time_SO2);
@@ -35,22 +51,56 @@ void ISR_SO2(){   // ISR of first optic sensor
 void ISR_SO3(){   // ISR of second optic sensor
   if (digitalRead(SO3)){
     time_SO3 = millis();
-    delay_SO = uint8_t(time_SO3 - time_SO2);
   }
   else {
     width_SO3 = uint8_t(millis() - time_SO2);
-    ratio_SO = float(width_SO3) / delay_SO;
-    #ifdef DEBUG
-      Serial.println("New coin detected, ratio is " + String(ratio_SO));
-    #endif
-    newCoin(ratio_SO);
+    new_coin = true;
   }
 }
 
 // Functions #######################################################
 
-void newCoin(float ratio){    // Compares ratio with valid ranges
+void serialWatchdog(){
+  if (Serial.available()){
+    String command = Serial.readString();
+    if (command.equalsIgnoreCase("CONFIGURE")) configure = 1;
+    else if (command.equalsIgnoreCase("RUN")) configure = 0;
+    else {
+      configure_coin = command.toInt();
+      switch(configure_coin) {
+        case 1: coin_id = 0; break;
+        case 2: coin_id = 1; break;
+        case 5: coin_id = 2; break;
+        case 10: coin_id = 3; break;
+        case 20: coin_id = 4; break;
+        case 50: coin_id = 5; break;
+        case 100: coin_id = 6; break;
+        case 200: coin_id = 7; break;
+      }
+    }
+  }
+}
+
+void newCoin(){    // Compares ratio with valid ranges
+  uint8_t delay_SO = uint8_t(time_SO3 - time_SO2);
+  uint8_t total_SO = delay_SO + width_SO3;
+  ratios coin_ratios;
+  coin_ratios.w3_d = float(width_SO3) / delay_SO;
+  coin_ratios.w3_t = float(width_SO3) / total_SO;
+  if (configure) adjustCoin(coin_ratios);
+  else compareCoin(coin_ratios);
+}
+
+void adjustCoin(ratios coin_ratios){
+  
+}
+
+void compareCoin(ratios coin_ratios){
   uint8_t cents;
+  #ifdef DEBUG
+      Serial.println("New coin detected, ratio is " + String(coin_ratios.w3_d));
+    #endif
+    /*
   if ((ratio < ratio_limits[0]) || (ratio > ratio_limits[8])) {
     cents = 0;                // Object detected out of range
   }
@@ -78,14 +128,13 @@ void newCoin(float ratio){    // Compares ratio with valid ranges
   else if ((ratio >= ratio_limits[5]) && (ratio < ratio_limits[8])) {
     cents = 200;              // Object detected as 200c coin
   }
-  
+  */
   if ((cents > 5) && (cents < 200)){    // Accepted coins condition
     coinAccepted(cents);
   }
 }
 
 void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
-  pending_coin = true;    // Enable coin accepted flag to control rejection motor
   payment_money += cents;     // Add coin value to money of payment in progress
   #ifdef DEBUG            // Debug money introduced
     Serial.print("New coin accepted: " + String(cents));
@@ -99,6 +148,7 @@ void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
     #endif
     payment_money = 0;
   }
+  openCollector();  
 }
 
 void wait(int milliseconds){
@@ -120,7 +170,6 @@ void openCollector(){
   }
   wait(10);
   digitalWrite(M1_en, LOW);     // Keep in rejection position
-  pending_coin = false;
 }
 
 void setup() {  // #################################################
@@ -134,19 +183,19 @@ void setup() {  // #################################################
   attachInterrupt(digitalPinToInterrupt(SO2), ISR_SO2, CHANGE);
   attachInterrupt(digitalPinToInterrupt(SO2), ISR_SO3, CHANGE);
 
-  #ifdef DEBUG
-    Serial.begin(9600);
-  #endif
-
-  digitalWrite(M1_bk, HIGH);
+  Serial.begin(9600);
   
-  pending_coin = false;
+  digitalWrite(M1_bk, HIGH);
+
+  configure = false;
+  new_coin = false;
   payment_money = 0;
   queue = 0;
 }
 
 void loop() {  // ##################################################
-  if (pending_coin){
-    openCollector();
+  serialWatchdog();
+  if (new_coin){
+    newCoin();
   }
 }
