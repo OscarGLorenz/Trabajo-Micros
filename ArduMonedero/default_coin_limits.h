@@ -47,8 +47,8 @@ void loadDefaultLimits(){       // Adjust when limits have been calibrated for a
   coins[5].min.w3_t = 2;
   coins[5].max.w3_t = 2;
 
-  coins[6].min.w3_d = 2;
-  coins[6].max.w3_d = 2;
+  coins[6].min.w3_d = 1.2;
+  coins[6].max.w3_d = 1.39;
   coins[6].min.w3_t = 2;
   coins[6].max.w3_t = 2;
 

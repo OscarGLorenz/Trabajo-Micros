@@ -14,8 +14,11 @@ uint8_t queue;
 uint8_t payment_money;
 
 // Detection variables --------------
-unsigned long int time_SO2, time_SO3;
+uint8_t time_SO2, time_SO3;
 uint8_t width_SO2, width_SO3, delay_SO, total_SO;
+float rel;
+float rel_max = 0;
+float rel_min = 0;
 
 //Flags ------------------------------
 uint8_t new_coin;
@@ -24,26 +27,62 @@ uint8_t coin_id;
 
 // Interrupt Service Routines ######################################
 
+void ISR_SO2() {
+  if (digitalRead(SO2)) {
+    time_SO2 = millis();
+  }
+  else {
+    width_SO2 = millis() - time_SO2;
+    Serial.println("Moneda: ancho02 ancho03 dly total");
+    Serial.print(String(width_SO2) + "   ");
+  }
+}
+
+void ISR_SO3() {
+  if (digitalRead(SO3)) {
+    time_SO3 = millis();
+    delay_SO = millis()- time_SO2;
+  }
+  else {
+    width_SO3 = millis() - time_SO3;
+    total_SO = millis() - time_SO2;
+    Serial.print(String(width_SO3) + "   ");
+    Serial.print(String(delay_SO) + "   ");
+    Serial.print(String(total_SO) + "   ");
+    Serial.println("Medida relativa: ");
+    rel = float(width_SO3)/delay_SO;
+    if(rel > rel_max) rel_max = rel;
+    else if(rel < rel_min) rel_min = rel;
+    Serial.print(String(rel) + "   " + "Max: " + String(rel_max) + "   " + "Min: " + String(rel_min));
+  }
+}
+/*
+
 void ISR_SO2(){   // ISR of first optic sensor
   if (digitalRead(SO2)){
     time_SO2 = millis();
     new_coin = false;
+    Serial.println("Entra SO2");
   }
   else {
-    width_SO2 = uint8_t(millis() - time_SO2);
+    width_SO2 = millis() - time_SO2;
+    Serial.println("Sale SO2");
   }
 }
 
 void ISR_SO3(){   // ISR of second optic sensor
   if (digitalRead(SO3)){
     time_SO3 = millis();
+    delay_SO = time_SO3-time_SO2;
+    Serial.println("Delay " + String(delay_SO));
   }
   else {
-    width_SO3 = uint8_t(millis() - time_SO2);
+    width_SO3 = millis() - time_SO3;
+    Serial.println("Width " + String(width_SO3));
     new_coin = true;
   }
 }
-
+*/
 // Functions #######################################################
 
 void serialWelcome(){
@@ -57,7 +96,7 @@ void serialWelcome(){
 void serialWatchdog(){
   if (Serial.available()){
     String command = Serial.readString();
-    Sprint("Command received: ");
+    Sprint("\nCommand received: ");
     Serial.println(command);
     if (command.equalsIgnoreCase("CALIBRATE")) calibrate = 1;
     else if (command.equalsIgnoreCase("RUN")) calibrate = 0;
@@ -85,33 +124,34 @@ void serialPrintLimits(){
   Sprintln("\t\t1c\t2c\t5c\t10c\t20c\t50c\t1e\t2e");
   Sprint("w3/d min:\t");
   for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_d); Sprint("\t");}
-  Sprint("w3/d max:\t");
-  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_d); Sprint("\t");}
-  Sprint("w3/t min:\t");
+ // Sprint("\nw3/d max:\t");
+ // for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_d); Sprint("\t");}
+  Sprint("\nw3/t min:\t");
   for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_t); Sprint("\t");}
-  Sprint("w3/t max:\t");
-  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");}
+ // Sprint("\nw3/t max:\t");
+ // for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");}
 }
 
 void resetLimit(coin_params* coin){
   coin->min.w3_d = 100;
   coin->max.w3_d = 0.0;
-  coin->min.w3_t = 100;
-  coin->max.w3_t = 0.0;
+//  coin->min.w3_t = 100;
+//  coin->max.w3_t = 0.0;
 }
 
 void newCoin(){    // Compares ratio with valid ranges
-  uint8_t delay_SO = uint8_t(time_SO3 - time_SO2);
-  uint8_t total_SO = delay_SO + width_SO3;
+//  delay_SO = uint8_t(time_SO3 - time_SO2);
+  total_SO = delay_SO + width_SO3;
   coin_ratios ratios;
-  ratios.w3_d = float(width_SO3) / delay_SO;
+  new_coin = false;
+  float w3_d = float(width_SO3) / delay_SO;
   ratios.w3_t = float(width_SO3) / total_SO;
   Sprint("New coin introduced, type ");
   Serial.println(coin_id);
   Sprint("widthO3/delay = ");
-  Serial.println(ratios.w3_d);
-  Sprint("widthO3/total = ");
-  Serial.println(ratios.w3_t);
+  Serial.println(w3_d);
+ // Sprint("widthO3/total = ");
+ // Serial.println(ratios.w3_t);
   if (calibrate) adjustCoin(ratios);
   else compareCoin(ratios);
 }
@@ -199,7 +239,7 @@ void setup() {  // #################################################
   loadDefaultLimits();
   
   Serial.begin(9600);
-  if (Serial) serialWelcome();
+ // if (Serial) serialWelcome();
   
   digitalWrite(M1_bk, HIGH);
 
@@ -210,7 +250,7 @@ void setup() {  // #################################################
 }
 
 void loop() {  // ##################################################
-  serialWatchdog();
+  //serialWatchdog();
   if (new_coin){
     newCoin();
   }
