@@ -19,43 +19,27 @@ coin_params coins[8];
 void loadDefaultLimits(){       // Adjust when limits have been calibrated for adequate statistical sample
   coins[0].min.w3_d = 2;
   coins[0].max.w3_d = 2;
-  coins[0].min.w3_t = 2;
-  coins[0].max.w3_t = 2;
   
   coins[1].min.w3_d = 2;
   coins[1].max.w3_d = 2;
-  coins[1].min.w3_t = 2;
-  coins[1].max.w3_t = 2;
   
   coins[2].min.w3_d = 2;
   coins[2].max.w3_d = 2;
-  coins[2].min.w3_t = 2;
-  coins[2].max.w3_t = 2;
 
   coins[3].min.w3_d = 2;
   coins[3].max.w3_d = 2;
-  coins[3].min.w3_t = 2;
-  coins[3].max.w3_t = 2;
 
   coins[4].min.w3_d = 2;
   coins[4].max.w3_d = 2;
-  coins[4].min.w3_t = 2;
-  coins[4].max.w3_t = 2;
 
   coins[5].min.w3_d = 2;
   coins[5].max.w3_d = 2;
-  coins[5].min.w3_t = 2;
-  coins[5].max.w3_t = 2;
 
   coins[6].min.w3_d = 1.2;
   coins[6].max.w3_d = 1.39;
-  coins[6].min.w3_t = 2;
-  coins[6].max.w3_t = 2;
 
   coins[7].min.w3_d = 2;
   coins[7].max.w3_d = 2;
-  coins[7].min.w3_t = 2;
-  coins[7].max.w3_t = 2;
 }
 
 #endif // _DEF_COIN_LIMITS_H

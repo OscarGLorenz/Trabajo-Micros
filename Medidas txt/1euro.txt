@@ -1,4 +1,4 @@
-Moneda 1€
+gMoneda 1€
 
 Monedas: ancho02 ancho03 dly total
 45   40   30   70   

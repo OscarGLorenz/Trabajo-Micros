@@ -3,13 +3,14 @@
 #ifndef _PINDEF_H
 #define _PINDEF_H
 
-#define SOCKET A
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 // Auto detect board type
 #if defined(__AVR_ATmega328P__)
   #define BOARD_TYPE UNO
-//#elif defined(__AVR_ATmega2560__)
-//  #define BOARD_TYPE MEGA
+#elif defined(__AVR_ATmega2560__)
+  #define BOARD_TYPE MEGA
 #else
   #define BOARD_TYPE MOLASE
 #endif
