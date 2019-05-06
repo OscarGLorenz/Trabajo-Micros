@@ -27,32 +27,44 @@ volatile bool pulsDir = 0;
 
 volatile bool changedDir = false;
 
-enum mode_t {START,ACCEL,BRAKE};
-enum mode_t mode = START;
+enum mode_t {CUELGA,ROTA,GIRA,FRENA};
+enum mode_t mode = CUELGA;
 
-ISR(INT3_vect) {
+float times[5];
+float bouncing_time=500;
+ISR(INT3_vect){
 
         if (dir) pos++;
         else pos--;
         now = millis();
         dif = now - past;
-        filtr = (1-Kfiltr)*dif + Kfiltr *filtr;
 
-        if ( dif > 1.8*filtr && !changedDir) {
-            if (now - lastIn >  500) {
-                changedDir = true;
-                dir = !dir;
-                tbi(OUTRUT,M2_di); // Toggle M2_dir
-                lastIn = now;
-            }
-        } else if ( dif < 2*filtr && changedDir) {
-            changedDir = false;
+        for (int j=0;j<4;j++){
+          times[j]=times[j+1];
         }
+        times[4] = dif;
 
-        past = now;
+      int aux = (((times[0]+times[1]) * 2.5) - (times[2]+times[3]+times[4]));
+
+      if (now - lastIn > bouncing_time){
+        if (aux < 0){
+
+          if (pos > 40  || pos < -40 ){
+            bouncing_time= 3 *(times[2]+times[3]+times[4]);
+            if (bouncing_time < 500) bouncing_time = 500;
+          }else bouncing_time = 500;
+
+          dir = !dir;
+          tbi(OUTRUT,M2_di); // Toggle M2_dir
+          lastIn = now;
+        }
+      }
+
+      past = now;
+
 }
 
-
+unsigned long start_flag=0;
 volatile bool flag = 0;
 volatile long int nowInter = 0;
 ISR(PCINT0_vect) {
@@ -67,6 +79,7 @@ ISR(PCINT0_vect) {
 
 void setup() {
     while (rbi(PINK,SW1));
+
 
     DDRL = 0xFF;
 
@@ -90,8 +103,7 @@ void setup() {
 
 
     serialBegin(9600);
-
-
+    start_flag= millis();
 
 }
 
@@ -102,22 +114,27 @@ long int pocoPoco = 0;
 
 void loop() {
     switch(mode) {
-        case START:
+        case CUELGA:
+
             if(pos < 10) {
-                if (millis()%1200 > 1200/2)
+                if (millis() - start_flag < 2000){
+                  cbi(OUTRUT,M2_di);
+                }
+                else if (millis()%1200 > 1200/2)
                     sbi(OUTRUT,M2_di);
                 else
                     cbi(OUTRUT,M2_di);
             } else {
-                mode = ACCEL;
+                mode = ROTA;
+                lastIn = now;
                 sbi(OUTRUT, L2);
             }
             break;
 
-        case ACCEL:
+        case ROTA:
             if ( millis() - nowInter > 1 && flag) {
                 if (rbi(PINB,PB0)) {
-                    pos = 0;
+                    pos = +6;
                 }
                 flag = 0;
             }
@@ -127,12 +144,12 @@ void loop() {
     if (millis() - pocoPoco > 5) {
         pocoPoco = millis();
         //serialPrintFloat((float) pos);
-        serialPrintFloat(1.8*filtr);
-
-        serialWrite(' ');
         serialPrintFloat(dif);
         serialWrite(' ');
-
+        serialPrintFloat(pos);
+        serialWrite(' ');
+        serialPrintFloat(bouncing_time);
+        serialWrite(' ');
         serialPrintFloat((dir) ? 50.0 : -50.0);
         serialWrite('\n');
         lastPos = pos;
