@@ -115,42 +115,61 @@ void printLimitsAll(){
   Sprintln("Now coin ratios limits are:");
   Sprintln("Coin type:\t0(1c)\t1(2c)\t2(5c)\t3(10c)\t4(20c)\t5(50c)\t6(1e)\t7(2e)");
   Sprintln("\t\t-------------------------------------------------------------");
-  Sprint("w3/d min:\t");
-  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_d); Sprint("\t");}
-  Sprint("\nw3/d max:\t");
-  for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_d); Sprint("\t");}
-  Sprint("\n\n");
+  Sprint("w2/d min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w2_d); Sprint("\t");} Sprint("\n");
+  Sprint("w2/d max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w2_d); Sprint("\t");} Sprint("\n\n");
+  Sprint("w3/d min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_d); Sprint("\t");} Sprint("\n");
+  Sprint("w3/d max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_d); Sprint("\t");} Sprint("\n\n");
+  Sprint("w2/t min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w2_t); Sprint("\t");} Sprint("\n");
+  Sprint("w2/t max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w2_t); Sprint("\t");} Sprint("\n\n");
+  Sprint("w3/t min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_t); Sprint("\t");} Sprint("\n");
+  Sprint("w3/t max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");} Sprint("\n");
+  Sprint("\n");
 }
 
 void printLimitsCoin(){
   Sprint("Now coin ID = ");
   Serial.print(coin_id);
   Sprintln(" ratios limits are:");
-  Sprint("w3/d min:\t");
-  Serial.print(coins[coin_id].min.w3_d);
-  Sprint("\nw3/d max:\t");
-  Serial.print(coins[coin_id].max.w3_d);
-  Sprint("\n\n");
+  Sprint("w2/d min:\t"); Serial.print(coins[coin_id].min.w2_d); Sprint("\n");
+  Sprint("w2/d max:\t"); Serial.print(coins[coin_id].max.w2_d); Sprint("\n");
+  Sprint("w3/d min:\t"); Serial.print(coins[coin_id].min.w3_d); Sprint("\n");
+  Sprint("w3/d max:\t"); Serial.print(coins[coin_id].max.w3_d); Sprint("\n");
+  Sprint("w2/t min:\t"); Serial.print(coins[coin_id].min.w2_t); Sprint("\n");
+  Sprint("w2/t max:\t"); Serial.print(coins[coin_id].max.w2_t); Sprint("\n");
+  Sprint("w3/t min:\t"); Serial.print(coins[coin_id].min.w3_t); Sprint("\n");
+  Sprint("w3/t max:\t"); Serial.print(coins[coin_id].max.w3_t); Sprint("\n");
+  Sprint("\n");
 }
 
 void resetLimit(coin_params* coin){
+  coin->min.w2_d = 100;
+  coin->max.w2_d = 0.0;
   coin->min.w3_d = 100;
   coin->max.w3_d = 0.0;
+  coin->min.w2_t = 100;
+  coin->max.w2_t = 0.0;
+  coin->min.w3_t = 100;
+  coin->max.w3_t = 0.0;
 }
 
 void newCoin(){    // Compares ratio with valid ranges
   uint8_t d = t3 - t2;
   uint8_t t = d + w3;
-  coin_ratios ratios;
+  struct coin_ratios ratios;
   new_coin = false;
+  ratios.w2_d = float(w2) / d;
   ratios.w3_d = float(w3) / d;
+  ratios.w2_t = float(w2) / t;
   ratios.w3_t = float(w3) / t;
   Sprint("New coin introduced:\t");
   #if DEBUG
     Serial.println(String(w2)+"\t"+String(w3)+"\t"+String(d)+"\t"+String(t));
   #endif
-  Sprint("\nw3/d = ");
-  Serial.println(ratios.w3_d);
+  Sprint("\n");
+  Sprint("w2/d = "); Serial.print(ratios.w2_d); Sprint(",\t");
+  Sprint("w3/d = "); Serial.print(ratios.w3_d); Sprint(",\t");
+  Sprint("w2/t = "); Serial.print(ratios.w2_t); Sprint(",\t");
+  Sprint("w3/t = "); Serial.print(ratios.w3_t); Sprint("\n");
   if (calibrate) {
     adjustCoin(ratios);
     if (Serial) printLimitsCoin();
@@ -158,14 +177,18 @@ void newCoin(){    // Compares ratio with valid ranges
   else compareCoin(ratios);
 }
 
-void adjustCoin(coin_ratios ratios){
+void adjustCoin(struct coin_ratios ratios){
+  if(coins[coin_id].min.w2_d > ratios.w2_d) coins[coin_id].min.w2_d = ratios.w2_d;
+  if(coins[coin_id].max.w2_d < ratios.w2_d) coins[coin_id].max.w2_d = ratios.w2_d;
   if(coins[coin_id].min.w3_d > ratios.w3_d) coins[coin_id].min.w3_d = ratios.w3_d;
   if(coins[coin_id].max.w3_d < ratios.w3_d) coins[coin_id].max.w3_d = ratios.w3_d;
-  if(coins[coin_id].min.w3_t < ratios.w3_t) coins[coin_id].min.w3_t = ratios.w3_t;
+  if(coins[coin_id].min.w2_t > ratios.w2_t) coins[coin_id].min.w2_t = ratios.w2_t;
+  if(coins[coin_id].max.w2_t < ratios.w2_t) coins[coin_id].max.w2_t = ratios.w2_t;
+  if(coins[coin_id].min.w3_t > ratios.w3_t) coins[coin_id].min.w3_t = ratios.w3_t;
   if(coins[coin_id].max.w3_t < ratios.w3_t) coins[coin_id].max.w3_t = ratios.w3_t;
 }
 
-void compareCoin(coin_ratios ratios){
+void compareCoin(struct coin_ratios ratios){   // Cambiar lo que se compara en casos en los que se solapen algunos ratios
   uint8_t cents;
   if ((ratios.w3_d >= coins[0].min.w3_d) && (ratios.w3_d <= coins[0].max.w3_d)) cents = 1;     // Object detected as 1c coin
   else if ((ratios.w3_d >= coins[1].min.w3_d) && (ratios.w3_d <= coins[1].max.w3_d)) cents = 2;     // Object detected as 2c coin
