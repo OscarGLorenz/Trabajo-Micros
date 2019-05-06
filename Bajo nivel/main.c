@@ -27,7 +27,7 @@ volatile bool pulsDir = 0;
 
 volatile bool changedDir = false;
 
-enum mode_t {CUELGA,ROTA,GIRA,FRENA};
+enum mode_t {CUELGA,ROTA,GIRA,FRENA,WAIT};
 enum mode_t mode = CUELGA;
 
 float times[5];
@@ -78,7 +78,6 @@ ISR(PCINT0_vect) {
 }
 
 void setup() {
-    while (rbi(PINK,SW1));
 
 
     DDRL = 0xFF;
@@ -110,14 +109,14 @@ void setup() {
 
 int duty = 0;
 long int pocoPoco = 0;
-
+long int auxTime = 0;
 
 void loop() {
     switch(mode) {
         case CUELGA:
 
             if(pos < 10) {
-                if (millis() - start_flag < 2000){
+                if (millis() - start_flag < 1000){
                   cbi(OUTRUT,M2_di);
                 }
                 else if (millis()%1200 > 1200/2)
@@ -132,13 +131,43 @@ void loop() {
             break;
 
         case ROTA:
-            if ( millis() - nowInter > 1 && flag) {
-                if (rbi(PINB,PB0)) {
-                    pos = +6;
-                }
-                flag = 0;
+
+            if (millis() - lastIn > 3000) {
+              mode = FRENA;
+              dir = !dir;
+              tbi(OUTRUT,M2_di); // Toggle M2_dir
+              cbi(OUTRUT, L2);
+              auxTime = millis();
             }
             break;
+        case FRENA:
+            if (pos > 30 || pos < -30) {
+              auxTime = millis();
+            }
+            if (millis() - auxTime > 1000) {
+              mode = WAIT;
+              cbi(OUTRUT,M2_en);
+              cbi(OUTRUT,M2_di);
+              sbi(OUTRUT, L4);
+
+            }
+            break;
+        case WAIT:
+            break;
+    }
+    // PCINT MOAR CODE
+    if ( millis() - nowInter > 1 && flag) {
+        if (rbi(PINB,PB0)) {
+            pos = +6;
+        }
+        flag = 0;
+    }
+    if (!rbi(PINK,SW1)) {
+      mode = FRENA;
+      dir = !dir;
+      tbi(OUTRUT,M2_di); // Toggle M2_dir
+      cbi(OUTRUT, L2);
+      auxTime = millis();
     }
 
     if (millis() - pocoPoco > 5) {
