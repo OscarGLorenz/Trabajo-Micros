@@ -177,34 +177,38 @@ void compareCoin(coin_ratios ratios){
   else if ((ratios.w3_d >= coins[7].min.w3_d) && (ratios.w3_d <= coins[7].max.w3_d)) cents = 200;   // Object detected as 200c coin
   else {            // Object detected out of range
     cents = 0;
-    Sprintln("Coin not detected in pre-calibrated ranges, try again");
+    Sprintln("Coin not detected in pre-calibrated ranges, try again.\n");
   }
-  Sprint("New coin detected of ");
-  Serial.print(cents);
-  Sprintln(" cents.");
-  if ((cents > 5) && (cents < 200)){    // Accepted coins condition
-    coinAccepted(cents);
-  }
-  else {
-    Sprintln("Coin rejected, sorry.");
+  if (cents > 0) {
+    Sprint("New coin detected of ");
+    Serial.print(cents);
+    Sprintln(" cents.");
+    if ((cents > 5) && (cents < 200)){    // Accepted coins condition
+      coinAccepted(cents);
+    }
+    else {
+      Sprintln("Coin rejected, sorry.");
+    }
   }
 }
 
 void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
   payment_money += cents;     // Add coin value to money of payment in progress
-  Sprintln("Coin added to payment, total inserted money: ");
+  Sprint("Coin added to payment, total inserted money: ");
   Serial.print(payment_money);
-  Sprintln(" cents.");
+  Sprintln(" cents.\n");
   if (payment_money >= 120){
     queue++;
     if (Serial){            // Debug people in queue
-      Sprint("New payment completed: ");
+      Sprint("***** New payment completed: ");
       Serial.print(payment_money);
       Sprint(" cents, people in queue: ");
-      Serial.println(queue);
+      Serial.print(queue);
+      Sprintln(" *****");
     }
     payment_money = 0;
   }
+  Sprint("\n");
   //openCollector();  
 }
 
