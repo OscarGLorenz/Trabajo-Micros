@@ -7,25 +7,13 @@
 #include "../charpy/pinout.h"
 #include "../charpy/serial.h"
 
-
+// Variables auxiliares para el encoder
 volatile int pos = 0;
 volatile bool dir = 0;
 volatile long int now = 0;
 volatile long int past = 0;
-volatile float filtr = 0;
 volatile long int dif = 0;
 volatile long int lastIn = 0;
-
-volatile int difference = 0;
-volatile int lastPos = 0;
-volatile int dif_1 = 0;
-volatile int dif_2 = 0;
-
-volatile bool pulsDir = 0;
-#define Kfiltr 0.95
-
-
-volatile bool changedDir = false;
 
 enum mode_t {ESPERA,CUELGA,ROTA,GIRA,FRENA,EMERGENCIA,CATASTROFE,LOBOTOMIA,CARGA};
 enum mode_t mode = ESPERA;
@@ -35,7 +23,7 @@ unsigned int  L4tiempo = 0 ;
 
 float times[5];
 float bouncing_time=500;
-ISR(INT3_vect){
+ISR(SO4_vect){
 
         if (dir) pos++;
         else pos--;
@@ -71,9 +59,9 @@ ISR(INT3_vect){
 unsigned long start_flag=0;
 volatile bool flag = 0;
 volatile long int nowInter = 0;
-ISR(PCINT0_vect) {
+ISR(SO5_vect) {
 
-        if (rbi(PINB,PB0)) {
+        if (rbi(PIN_S05,P_S05)) {
             flag = 1;
             nowInter = millis();
         }
@@ -81,20 +69,20 @@ ISR(PCINT0_vect) {
 
 void setup() {
 
-    DDRL = 0xFF;
+    DDR_OUTRUT = 0xFF;
 
     cli();
 
     // CHANGE triggers INT3
-    sbi(EICRA, ISC30);
-    cbi(EICRA, ISC31);
+    sbi(CTRL_INT, SO4_C0);
+    cbi(CTRL_INT, SO4_C1);
 
     // Enable INT3
-    sbi(EIMSK, SO4);
+    sbi(INT_MASK, SO4);
 
     // Enable PCINT0
-    sbi(PCICR, PCIE0);
-    sbi(PCMSK0, PCINT0);
+    sbi(S05_CTRL, SO5_ENABLE);
+    sbi(SO5_MASK, SO5);
 
     sei();
 
@@ -114,7 +102,7 @@ long int auxTime = 0;
 void loop() {
     switch(mode) {
         case ESPERA:
-          if (!rbi(PINK,SW3)) {
+          if (!rbi(PINRUT,SW3)) {
             mode=CARGA;
             auxTime=millis();
             sbi(OUTRUT,L3);
@@ -245,6 +233,8 @@ void loop() {
 
       }
     }
+  } else {
+    cbi(OUTRUT,L4);
   }
     if (millis() - pocoPoco > 5) {
         pocoPoco = millis();
@@ -259,7 +249,6 @@ void loop() {
         serialWrite(' ');
         serialPrintFloat(((int) mode)*100);
         serialWrite('\n');
-        lastPos = pos;
     }
 
 }
