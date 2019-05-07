@@ -8,7 +8,7 @@
 //#include "serial.h"
 
 #include "default_coin_limits.h"  // Load pre-calibrated limits for coin detection
-//#define DEBUG         // Uncomment for serial debugging
+#define DEBUG         // Uncomment for serial debugging
 
 // Global variables ################################################
 
@@ -17,10 +17,10 @@ uint8_t queue;
 uint8_t payment_money;
 
 // Detection variables --------------
-unsigned long t2, t3, w2, w3;
+unsigned long t2, t3, w2, w3, d, t, s;
 
 //Flags ------------------------------
-uint8_t new_coin;
+uint8_t coin_state;
 uint8_t calibrate;
 uint8_t coin_id;
 
@@ -28,32 +28,62 @@ uint8_t coin_id;
 
 void ISR_SO2(){   // ISR of first optic sensor
   if (digitalRead(SO2)){
-    t2 = micros();
-    new_coin = false;
-    #if DEBUG
-      Sprintln("Entra SO2"); 
+    if (coin_state == 0){
+      t2 = micros();
+      coin_state = 1;
+      #ifdef DEBUG
+        Sprintln("Entra SO2"); 
+      #endif
+    }
+    else {
+      coin_state = 0;
+      #ifdef DEBUG
+      Sprintln("Espurio SO2 - rise"); 
+    #endif
+    }
+  }
+  else if (coin_state == 2){
+    w2 = micros() - t2;
+    coin_state = 3;
+    #ifdef DEBUG
+      Sprintln("Sale SO2"); 
     #endif
   }
   else {
-    w2 = micros() - t2;
-    #if DEBUG
-      Sprintln("Sale SO2"); 
+    coin_state = 0;
+    #ifdef DEBUG
+      Sprintln("Espurio SO2 - fall"); 
     #endif
   }
 }
 
 void ISR_SO3(){   // ISR of second optic sensor
   if (digitalRead(SO3)){
-    t3 = micros();
-    #if DEBUG
-      Sprintln("Entra SO3"); 
+    if (coin_state == 1){
+      t3 = micros();
+      coin_state = 2;
+      #ifdef DEBUG
+        Sprintln("Entra SO3"); 
+      #endif
+    }
+    else{
+      coin_state = 0;
+      #ifdef DEBUG
+        Sprintln("Espurio SO3 - rise"); 
+      #endif
+    }
+  }
+  else if (coin_state == 3){
+    w3 = micros() - t3;
+    coin_state = 4;
+    #ifdef DEBUG
+      Sprintln("Sale SO3");
     #endif
   }
   else {
-    w3 = micros() - t3;
-    new_coin = true;
-    #if DEBUG
-      Sprintln("Sale SO3");
+    coin_state = 0;
+    #ifdef DEBUG
+      Sprintln("Espurio SO3 - fall"); 
     #endif
   }
 }
@@ -122,7 +152,9 @@ void printLimitsAll(){
   Sprint("w2/t min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w2_t); Sprint("\t");} Sprint("\n");
   Sprint("w2/t max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w2_t); Sprint("\t");} Sprint("\n\n");
   Sprint("w3/t min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.w3_t); Sprint("\t");} Sprint("\n");
-  Sprint("w3/t max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");} Sprint("\n");
+  Sprint("w3/t max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.w3_t); Sprint("\t");} Sprint("\n\n");
+  Sprint("d/s min:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].min.d_s); Sprint("\t");} Sprint("\n");
+  Sprint("d/s max:\t"); for(int i = 0; i<8 ; i++){ Serial.print(coins[i].max.d_s); Sprint("\t");} Sprint("\n");
   Sprint("\n");
 }
 
@@ -138,6 +170,8 @@ void printLimitsCoin(){
   Sprint("w2/t max:\t"); Serial.print(coins[coin_id].max.w2_t); Sprint("\n");
   Sprint("w3/t min:\t"); Serial.print(coins[coin_id].min.w3_t); Sprint("\n");
   Sprint("w3/t max:\t"); Serial.print(coins[coin_id].max.w3_t); Sprint("\n");
+  Sprint("d/s min:\t"); Serial.print(coins[coin_id].min.d_s); Sprint("\n");
+  Sprint("d/s max:\t"); Serial.print(coins[coin_id].max.d_s); Sprint("\n");
   Sprint("\n");
 }
 
@@ -150,26 +184,31 @@ void resetLimit(coin_params* coin){
   coin->max.w2_t = 0.0;
   coin->min.w3_t = 100;
   coin->max.w3_t = 0.0;
+  coin->min.d_s = 100;
+  coin->max.d_s = 0.0;
 }
 
 void newCoin(){    // Compares ratio with valid ranges
-  uint8_t d = t3 - t2;
-  uint8_t t = d + w3;
+  d = t3 - t2;
+  t = d + w3;
+  s = w2 - (t3 - t2);
   struct coin_ratios ratios;
-  new_coin = false;
   ratios.w2_d = float(w2) / d;
   ratios.w3_d = float(w3) / d;
   ratios.w2_t = float(w2) / t;
   ratios.w3_t = float(w3) / t;
+  ratios.d_s = float(d) / s;
   Sprint("New coin introduced:\t");
-  #if DEBUG
-    Serial.println(String(w2)+"\t"+String(w3)+"\t"+String(d)+"\t"+String(t));
+  #ifdef DEBUG
+    Sprintln("w2\tw3\td\tt\ts");
+    Serial.println("\t\t\t"+String(w2)+"\t"+String(w3)+"\t"+String(d)+"\t"+String(t)+"\t"+String(s));
   #endif
   Sprint("\n");
   Sprint("w2/d = "); Serial.print(ratios.w2_d); Sprint(",\t");
   Sprint("w3/d = "); Serial.print(ratios.w3_d); Sprint(",\t");
   Sprint("w2/t = "); Serial.print(ratios.w2_t); Sprint(",\t");
-  Sprint("w3/t = "); Serial.print(ratios.w3_t); Sprint("\n");
+  Sprint("w3/t = "); Serial.print(ratios.w3_t); Sprint(",\t");
+  Sprint("d/s = "); Serial.print(ratios.d_s); Sprint("\n");
   if (calibrate) {
     adjustCoin(ratios);
     if (Serial) printLimitsCoin();
@@ -186,18 +225,23 @@ void adjustCoin(struct coin_ratios ratios){
   if(coins[coin_id].max.w2_t < ratios.w2_t) coins[coin_id].max.w2_t = ratios.w2_t;
   if(coins[coin_id].min.w3_t > ratios.w3_t) coins[coin_id].min.w3_t = ratios.w3_t;
   if(coins[coin_id].max.w3_t < ratios.w3_t) coins[coin_id].max.w3_t = ratios.w3_t;
+  if(coins[coin_id].min.d_s > ratios.d_s) coins[coin_id].min.d_s = ratios.d_s;
+  if(coins[coin_id].max.d_s < ratios.d_s) coins[coin_id].max.d_s = ratios.d_s;
 }
 
 void compareCoin(struct coin_ratios ratios){   // Cambiar lo que se compara en casos en los que se solapen algunos ratios
   uint8_t cents;
-  if ((ratios.w3_d >= coins[0].min.w3_d) && (ratios.w3_d <= coins[0].max.w3_d)) cents = 1;     // Object detected as 1c coin
-  else if ((ratios.w3_d >= coins[1].min.w3_d) && (ratios.w3_d <= coins[1].max.w3_d)) cents = 2;     // Object detected as 2c coin
-  else if ((ratios.w3_d >= coins[2].min.w3_d) && (ratios.w3_d <= coins[2].max.w3_d)) cents = 5;     // Object detected as 5c coin
-  else if ((ratios.w3_d >= coins[3].min.w3_d) && (ratios.w3_d <= coins[3].max.w3_d)) cents = 10;    // Object detected as 10c coin
-  else if ((ratios.w3_d >= coins[4].min.w3_d) && (ratios.w3_d <= coins[4].max.w3_d)) cents = 20;    // Object detected as 20c coin
-  else if ((ratios.w3_d >= coins[5].min.w3_d) && (ratios.w3_d <= coins[5].max.w3_d)) cents = 50;    // Object detected as 50c coin
-  else if ((ratios.w3_d >= coins[6].min.w3_d) && (ratios.w3_d <= coins[6].max.w3_d)) cents = 100;   // Object detected as 100c coin
-  else if ((ratios.w3_d >= coins[7].min.w3_d) && (ratios.w3_d <= coins[7].max.w3_d)) cents = 200;   // Object detected as 200c coin
+  #ifdef DEBUG
+    Serial.println(ratios.d_s);
+  #endif
+  if ((ratios.d_s >= coins[1].min.d_s) && (ratios.w3_d <= coins[1].max.d_s)) cents = 2;     // Object detected as 2c coin
+  else if ((ratios.d_s >= coins[2].min.d_s) && (ratios.d_s <= coins[2].max.d_s)) cents = 5;     // Object detected as 5c coin
+  else if ((ratios.d_s >= coins[3].min.d_s) && (ratios.d_s <= coins[3].max.d_s)) cents = 10;    // Object detected as 10c coin
+  else if ((ratios.d_s >= coins[4].min.d_s) && (ratios.d_s <= coins[4].max.d_s)) cents = 20;    // Object detected as 20c coin
+  else if ((ratios.d_s >= coins[5].min.d_s) && (ratios.d_s <= coins[5].max.d_s)) cents = 50;    // Object detected as 50c coin
+  else if ((ratios.d_s >= coins[6].min.d_s) && (ratios.d_s <= coins[6].max.d_s)) cents = 100;   // Object detected as 100c coin
+  else if ((ratios.d_s >= coins[7].min.d_s) && (ratios.d_s <= coins[7].max.d_s)) cents = 200;   // Object detected as 200c coin
+  else if ((ratios.d_s > coins[2].max.d_s) && (ratios.d_s < coins[7].min.d_s)) cents = 1;     // Object detected as 1c coin
   else {            // Object detected out of range
     cents = 0;
     Sprintln("Coin not detected in pre-calibrated ranges, try again.\n");
@@ -232,7 +276,7 @@ void coinAccepted(uint8_t cents){   // Acepts coin if ratio was validated
     payment_money = 0;
   }
   Sprint("\n");
-  //openCollector();  
+  openCollector();
 }
 
 void wait(int milliseconds){
@@ -242,7 +286,6 @@ void wait(int milliseconds){
 }
 
 void openCollector(){
-  unsigned long int prev_time;
   digitalWrite(M1_en, HIGH);    // Open coin slot
   while (digitalRead(SW2)){
   }
@@ -260,7 +303,7 @@ void setup() {  // #################################################
   pinMode(SO2, INPUT_PULLUP);
   pinMode(SO3, INPUT_PULLUP);
   pinMode(SW2, INPUT);
-  pinMode(M1_en, OUTPUT);
+  pinMode(8, OUTPUT);
   pinMode(M1_bk, OUTPUT);
   pinMode(L2, OUTPUT);
   
@@ -272,18 +315,19 @@ void setup() {  // #################################################
   Serial.begin(9600);
   if (Serial) serialWelcome();
   
-  digitalWrite(M1_bk, HIGH);
+  digitalWrite(M1_bk, LOW);
 
   calibrate = false;
-  new_coin = false;
   coin_id = 8;
+  coin_state = 0;
   payment_money = 0;
   queue = 0;
 }
 
 void loop() {  // ##################################################
   serialWatchdog();
-  if (new_coin){
+  if (coin_state == 4){
+    coin_state = 0;
     newCoin();
   }
 }
