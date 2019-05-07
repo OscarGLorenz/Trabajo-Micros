@@ -27,8 +27,11 @@ volatile bool pulsDir = 0;
 
 volatile bool changedDir = false;
 
-enum mode_t {CUELGA,ROTA,GIRA,FRENA,WAIT};
-enum mode_t mode = CUELGA;
+enum mode_t {ESPERA,CUELGA,ROTA,GIRA,FRENA,EMERGENCIA,CATASTROFE,LOBOTOMIA,CARGA};
+enum mode_t mode = ESPERA;
+
+bool L4on = false;
+unsigned int  L4tiempo = 0 ;
 
 float times[5];
 float bouncing_time=500;
@@ -60,9 +63,10 @@ ISR(INT3_vect){
         }
       }
 
-      past = now;
 
+      past = now;
 }
+
 
 unsigned long start_flag=0;
 volatile bool flag = 0;
@@ -70,15 +74,12 @@ volatile long int nowInter = 0;
 ISR(PCINT0_vect) {
 
         if (rbi(PINB,PB0)) {
-            tbi(OUTRUT,L1);
-
             flag = 1;
             nowInter = millis();
         }
 }
 
 void setup() {
-
 
     DDRL = 0xFF;
 
@@ -98,7 +99,6 @@ void setup() {
     sei();
 
 
-    sbi(OUTRUT,M2_en);
 
 
     serialBegin(9600);
@@ -113,6 +113,22 @@ long int auxTime = 0;
 
 void loop() {
     switch(mode) {
+        case ESPERA:
+          if (!rbi(PINK,SW3)) {
+            mode=CARGA;
+            auxTime=millis();
+            sbi(OUTRUT,L3);
+          }
+        break;
+
+          case CARGA :
+            if (millis() - auxTime > 10000 ){
+              mode = CUELGA;
+              sbi(OUTRUT,M2_en);
+              cbi(OUTRUT,L3);
+            }
+          break;
+
         case CUELGA:
 
             if(pos < 10) {
@@ -126,31 +142,50 @@ void loop() {
             } else {
                 mode = ROTA;
                 lastIn = now;
-                sbi(OUTRUT, L2);
             }
             break;
 
         case ROTA:
-
-            if (millis() - lastIn > 6000) {
-              mode = FRENA;
-              dir = !dir;
-              tbi(OUTRUT,M2_di); // Toggle M2_dir
-              cbi(OUTRUT, L2);
-              auxTime = millis();
+            if (millis() - lastIn > 2000) {
+              mode = GIRA;
             }
             break;
+        case GIRA:
+          if (millis() - lastIn > 10000) {
+            mode = FRENA;
+            dir = !dir;
+            tbi(OUTRUT,M2_di); // Toggle M2_dir
+            auxTime = millis();
+          }
+        break;
+
         case FRENA:
-            if (millis() - auxTime > 3000) {
-              mode = WAIT;
+            if (millis() - auxTime > 12000) {
+              mode = ESPERA;
               cbi(OUTRUT,M2_en);
               cbi(OUTRUT,M2_di);
-              sbi(OUTRUT, L4);
 
             }
             break;
-        case WAIT:
+
+            case CATASTROFE:
+            if (millis() - auxTime > 5000) {
+              mode = EMERGENCIA;
+              auxTime = millis();
+            }
+
             break;
+            case EMERGENCIA:
+            if (millis() - auxTime > 5000) {
+              mode = LOBOTOMIA;
+            }
+
+            break;
+            case LOBOTOMIA:
+              cbi(OUTRUT,M2_en);
+              cbi(OUTRUT,M2_di);
+            break;
+
     }
     // PCINT MOAR CODE
     if ( millis() - nowInter > 1 && flag) {
@@ -160,13 +195,57 @@ void loop() {
         flag = 0;
     }
     if (!rbi(PINK,SW1)) {
-      mode = FRENA;
-      dir = !dir;
-      tbi(OUTRUT,M2_di); // Toggle M2_dir
-      cbi(OUTRUT, L2);
-      auxTime = millis();
-    }
+      if (mode == ROTA) {
+        mode = EMERGENCIA;
+        dir = !dir;
+        tbi(OUTRUT,M2_di); // Toggle M2_dir
+        auxTime = millis();
+      } else if (mode==CUELGA || mode==ESPERA) {
+        mode = LOBOTOMIA;
+      }else if(mode == FRENA) mode = EMERGENCIA;
+       else if (mode == GIRA) {
+         mode = CATASTROFE;
+         dir = !dir;
+         tbi(OUTRUT,M2_di); // Toggle M2_dir
+         auxTime = millis();
 
+    }
+  }
+  // luces
+
+  if (mode == CUELGA ||mode == ROTA ||mode == GIRA ||mode == FRENA){
+    if (L4on){
+      if (millis()-L4tiempo > 500){
+        L4on = false;
+        cbi(OUTRUT,L4);
+        L4tiempo = millis();
+      }
+    }else{
+      if (millis()-L4tiempo > 10000){
+        L4on = true;
+        sbi(OUTRUT,L4);
+        L4tiempo = millis();
+
+      }
+    }
+  }
+  else if (mode == LOBOTOMIA ||mode == CATASTROFE||mode == EMERGENCIA ){
+    if (L4on){
+      if (millis()-L4tiempo > 200){
+        L4on = false;
+        cbi(OUTRUT,L4);
+        L4tiempo = millis();
+
+      }
+    }else{
+      if (millis()-L4tiempo > 1000){
+        L4on = true;
+        sbi(OUTRUT,L4);
+        L4tiempo = millis();
+
+      }
+    }
+  }
     if (millis() - pocoPoco > 5) {
         pocoPoco = millis();
         //serialPrintFloat((float) pos);
@@ -177,6 +256,8 @@ void loop() {
         serialPrintFloat(bouncing_time);
         serialWrite(' ');
         serialPrintFloat((dir) ? 50.0 : -50.0);
+        serialWrite(' ');
+        serialPrintFloat(((int) mode)*100);
         serialWrite('\n');
         lastPos = pos;
     }
