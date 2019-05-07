@@ -20,9 +20,9 @@
   #define PIN_21  2
   #define PIN_23  3
   #define PIN_31  4
-  #define PIN_26  5
-  #define PIN_24  6
-  #define PIN_22  7
+  #define PIN_26  8
+  #define PIN_24  9
+  #define PIN_22  10
 
 // Model connector -> MCU port
 #else   // Board is MOLASE, socket A
