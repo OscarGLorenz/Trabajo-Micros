@@ -4,12 +4,13 @@
 #define MONEDERO_H_
 
 // Precompiler definitions #########################################
+
+#include "../commonLibs/macros.h"
 #include "../commonLibs/time.h"
 #include "../commonLibs/pinout.h"
 #include "../commonLibs/serial.h"
 #include "monederoMacros.h"   // For macros, some of them ported from Marlin
 #include "monederoVars.h"     // Load pre-calibrated limits for coin detection
-#include "monederoConfig.h"   // Configure I/O ports and interrupts
 //#define DEBUG         // Uncomment for serial debugging
 
 // Interrupt Service Routines ######################################
@@ -18,13 +19,13 @@ ISR(INT1_vect){   // ISR of first optic sensor
 	if (readSO2()){
 		t2 = millis();
 		new_coin = false;
-		#if DEBUG
+		#ifdef DEBUG
 			serialPrintLn("Entra SO2"); 
 		#endif
 	}
 	else {
 		w2 = millis() - t2;
-		#if DEBUG
+		#ifdef DEBUG
 			serialPrintLn("Sale SO2"); 
 		#endif
 	}
@@ -33,14 +34,14 @@ ISR(INT1_vect){   // ISR of first optic sensor
 ISR(INT2_vect){   // ISR of second optic sensor
 	if (readSO3()){
 		t3 = millis();
-		#if DEBUG
+		#ifdef DEBUG
 		serialPrintLn("Entra SO3"); 
 		#endif
 	}
 	else {
 		w3 = millis() - t3;
 		new_coin = true;
-		#if DEBUG
+		#ifdef DEBUG
 			serialPrintLn("Sale SO3");
 		#endif
 	}
@@ -206,7 +207,7 @@ void newCoin(){    // Compares ratio with valid ranges
   ratios.w3_d = (float)w3 / d;
   ratios.w3_t = (float)w3 / t;
   serialPrint("New coin introduced:\t");
-  #if DEBUG
+  #ifdef DEBUG
     serialPrintInt(w2);
 	serialPrint("\t");
 	serialPrintInt(w3);
@@ -222,6 +223,22 @@ void newCoin(){    // Compares ratio with valid ranges
 	printLimitsCoin();
   }
   else compareCoin(ratios);
+}
+
+void monederoConfig() {		// Configure I/O ports and interrupts
+	while (rbi(PINK,SW1));
+	DDRL = 0xFF;		// Configure output port
+	cli();
+	// Interrupt triggers
+	BITSET(EICRA,ISC10);
+	BITCLEAR(EICRA,ISC11);
+	BITSET(EICRA,ISC20);
+	BITCLEAR(EICRA,ISC21);
+	
+	//Interrupt enable
+	BITSET(EIMSK,INT1);
+	BITSET(EIMSK,INT2);
+	sei();
 }
 
 void setupMonedero() {  // #################################################
