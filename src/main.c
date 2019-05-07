@@ -1,7 +1,7 @@
 #include "monedero/monedero.h"
 
 int main() {
-    setupMonedero();
-    for(;;) loopMonedero();
+    monederoSetup();
+    for(;;) monederoLoop();
     return 0;
 }
