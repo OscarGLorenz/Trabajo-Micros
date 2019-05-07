@@ -1,0 +1,52 @@
+Moneda 1cent
+
+Monedas: ancho02 ancho03 dly total
+36   32   29   61   
+Medidas relativas: 
+Sensor 2:   1.24   Max2: 1.24   Min2: 1.24
+Sensor 3:   1.10   Max3: 1.10   Min3: 1.10
+Monedas: ancho02 ancho03 dly total
+35   31   29   60   
+Medidas relativas: 
+Sensor 2:   1.21   Max2: 1.24   Min2: 1.21
+Sensor 3:   1.07   Max3: 1.10   Min3: 1.07
+Monedas: ancho02 ancho03 dly total
+42   35   35   70   
+Medidas relativas: 
+Sensor 2:   1.20   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.00   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+37   33   30   63   
+Medidas relativas: 
+Sensor 2:   1.23   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.10   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+41   35   34   69   
+Medidas relativas: 
+Sensor 2:   1.21   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.03   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+40   33   33   66   
+Medidas relativas: 
+Sensor 2:   1.21   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.00   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+40   34   33   67   
+Medidas relativas: 
+Sensor 2:   1.21   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.03   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+40   35   33   68   
+Medidas relativas: 
+Sensor 2:   1.21   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.06   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+42   36   35   71   
+Medidas relativas: 
+Sensor 2:   1.20   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.03   Max3: 1.10   Min3: 1.00
+Monedas: ancho02 ancho03 dly total
+39   32   32   64   
+Medidas relativas: 
+Sensor 2:   1.22   Max2: 1.24   Min2: 1.20
+Sensor 3:   1.00   Max3: 1.10   Min3: 1.00
