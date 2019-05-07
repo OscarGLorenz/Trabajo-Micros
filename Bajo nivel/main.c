@@ -132,7 +132,7 @@ void loop() {
 
         case ROTA:
 
-            if (millis() - lastIn > 3000) {
+            if (millis() - lastIn > 6000) {
               mode = FRENA;
               dir = !dir;
               tbi(OUTRUT,M2_di); // Toggle M2_dir
@@ -141,10 +141,7 @@ void loop() {
             }
             break;
         case FRENA:
-            if (pos > 30 || pos < -30) {
-              auxTime = millis();
-            }
-            if (millis() - auxTime > 1000) {
+            if (millis() - auxTime > 3000) {
               mode = WAIT;
               cbi(OUTRUT,M2_en);
               cbi(OUTRUT,M2_di);
