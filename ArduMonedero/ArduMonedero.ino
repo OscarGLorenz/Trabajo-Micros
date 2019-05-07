@@ -17,7 +17,7 @@ uint8_t queue;
 uint8_t payment_money;
 
 // Detection variables --------------
-uint8_t t2, t3, w2, w3;
+unsigned long t2, t3, w2, w3;
 
 //Flags ------------------------------
 uint8_t new_coin;
@@ -28,14 +28,14 @@ uint8_t coin_id;
 
 void ISR_SO2(){   // ISR of first optic sensor
   if (digitalRead(SO2)){
-    t2 = millis();
+    t2 = micros();
     new_coin = false;
     #if DEBUG
       Sprintln("Entra SO2"); 
     #endif
   }
   else {
-    w2 = millis() - t2;
+    w2 = micros() - t2;
     #if DEBUG
       Sprintln("Sale SO2"); 
     #endif
@@ -44,13 +44,13 @@ void ISR_SO2(){   // ISR of first optic sensor
 
 void ISR_SO3(){   // ISR of second optic sensor
   if (digitalRead(SO3)){
-    t3 = millis();
+    t3 = micros();
     #if DEBUG
       Sprintln("Entra SO3"); 
     #endif
   }
   else {
-    w3 = millis() - t3;
+    w3 = micros() - t3;
     new_coin = true;
     #if DEBUG
       Sprintln("Sale SO3");
