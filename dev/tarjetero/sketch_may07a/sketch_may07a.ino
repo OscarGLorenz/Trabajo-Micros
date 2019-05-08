@@ -2,7 +2,7 @@
 #define NUM_TOTAL_RAYITAS 26		//NÚMERO DE RAYAS QUE NOS ENCONTRAMOS POR TARJETA
 #define LRG 0						//DEFINIMOS RAYAS LARGAS CON CÓDIGO 0
 #define CRT 1						//DEFINIMOS RAYAS CORTAS CON CÓDIGO 1
-#define SENSOR 3					//PIN DEL SENSOR EN ARDUINO (PORQUE TIENE INTERRUPCIÓN
+#define SENSOR 3					//PIN DEL SENSOR EN ARDUINO (PORQUE TIENE INTERRUPCIÓN)
 #define rbi(data,bit) ((data & (bit << i)) != 0)
 
 int bandera1;  														//FLANCO DE INICIO DE RAYA DETECTADO
@@ -70,7 +70,7 @@ float sumData(uint16_t c) {		//NÚMERO DE '1' EN EL DATO C. USADO PARA CALCULAR 
   }
   return howmuch;
 }
-//TRADUCCIÓN DE traducidoh A aiuda. (ES NECESARIA LA CONVERSIÓN DE UN VECTOR A UNA VARIABLE INT PARA QUE FUNCIONE EL ALGORITMO DE JACCARD (TANIMOTO)). SE REALIZA LA ESTIMACIÓN.
+//TRADUCCIÓN DE traducidoh A aiuda. (ES NECESARIA LA CONVERSIÓN DE UN VECTOR A UNA VARIABLE INT PARA QUE FUNCIONE LA FÓRMULA DE JACCARD (TANIMOTO)). SE REALIZA LA ESTIMACIÓN.
 void aiudado() {
   aiuda = 0;
   for (int i = 20; i > 8; i--) {
@@ -140,6 +140,7 @@ float cuenta() {
     tiempo = micros();
     if (num_rayitas == 1) tiempo_total = micros();
     bandera2 = 1;
+    if(num_rayitas>2 && rayitas[num_rayitas-1]>30000) num_rayitas = 0;
   }
   else if (bandera1 == 0 && bandera2 == 1) {	//SALIMOS DE LA RAYA ACTUAL
     tiempo = micros() - tiempo;
@@ -152,6 +153,10 @@ float cuenta() {
     num_rayitas++;
     if (num_rayitas == NUM_TOTAL_RAYITAS) num_rayitas = 0;
   }
+  /*
+  if(num_rayitas>=1 && 
+  }
+  */
 }
 
 void setup() {
