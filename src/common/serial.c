@@ -9,8 +9,9 @@ void serialBegin(unsigned long baud) {
   // Fast mode
   sbi(UCSR2A,U2X2);
 
-  // Enable transmit
+  // Enable transmit & receive
   sbi(UCSR2B,TXEN2);
+  sbi(UCSR2B,RXEN2);
    
   // 8 bit, no parity, asyncronous and 1 stop bit
   sbi(UCSR2C,UCSZ20); 
@@ -22,7 +23,7 @@ void serialBegin(unsigned long baud) {
 }
 
 void serialWrite(char data) {
-  while (!rbi(UCSR2A,UDRE2)); // Wait until register is empty
+  while (!rbi(UCSR2A,UDRE2)); // wait for the charater to be fully received
   UDR2 = data;
 }
 
@@ -47,3 +48,23 @@ void serialPrintFloat(float f) {
     dtostrf(f,8,4,buf);
     serialPrint(buf);
 }
+
+unsigned char serialReadChar(){
+	while(!rbi(UCSR2A,RXC2))); 	//wait for the charater to be fully received
+	return(UDR2); 				//return the received charater
+}
+
+unsigned char * serialReadStringUntil(char endCharacter){
+	unsigned char string[20], x;
+	uint8_t i = 0;
+	while((x = serialReadChar() != endCharacter){ //receive the characters until ENTER is pressed (ASCII for ENTER = 13)
+		string[i++] = x; //and store the received characters into the array string[] one-by-one
+	}
+	string[i] = '\0'; //insert NULL to terminate the string
+	return(string); //return the received string
+}
+
+unsigned char * serialReadString(){
+	return serialReadStringUntil('\n');
+}
+	
