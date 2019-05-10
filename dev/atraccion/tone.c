@@ -119,7 +119,26 @@ int melody[] = {
   NOTE_G6, NOTE_E7, NOTE_G7,
   NOTE_A7, 0, NOTE_F7, NOTE_G7,
   0, NOTE_E7, 0, NOTE_C7,
-  NOTE_D7, NOTE_B6, 0, 0
+  NOTE_D7, NOTE_B6, 0, 0,
+  NOTE_C4, NOTE_C5, NOTE_A3, NOTE_A4,
+  NOTE_AS3, NOTE_AS4, 0,
+  0,
+  NOTE_C4, NOTE_C5, NOTE_A3, NOTE_A4,
+  NOTE_AS3, NOTE_AS4, 0,
+  0,
+  NOTE_F3, NOTE_F4, NOTE_D3, NOTE_D4,
+  NOTE_DS3, NOTE_DS4, 0,
+  0,
+  NOTE_F3, NOTE_F4, NOTE_D3, NOTE_D4,
+  NOTE_DS3, NOTE_DS4, 0,
+  0, NOTE_DS4, NOTE_CS4, NOTE_D4,
+  NOTE_CS4, NOTE_DS4,
+  NOTE_DS4, NOTE_GS3,
+  NOTE_G3, NOTE_CS4,
+  NOTE_C4, NOTE_FS4, NOTE_F4, NOTE_E3, NOTE_AS4, NOTE_A4,
+  NOTE_GS4, NOTE_DS4, NOTE_B3,
+  NOTE_AS3, NOTE_A3, NOTE_GS3,
+  0, 0, 0
 };
 //Mario main them tempo
 int tempo[] = {
@@ -147,6 +166,25 @@ int tempo[] = {
   12, 12, 12, 12,
   12, 12, 12, 12,
   12, 12, 12, 12,
+  12, 12, 12, 12,
+12, 12, 6,
+3,
+12, 12, 12, 12,
+12, 12, 6,
+3,
+12, 12, 12, 12,
+12, 12, 6,
+3,
+12, 12, 12, 12,
+12, 12, 6,
+6, 18, 18, 18,
+6, 6,
+6, 6,
+6, 6,
+18, 18, 18, 18, 18, 18,
+10, 10, 10,
+10, 10, 10,
+3, 3, 3
 };
 
 #define F_INT 1E6
@@ -158,6 +196,7 @@ ISR(TIMER3_COMPA_vect) {
 void noTone() {
   // Disable compare A on timer 3
   cbi(TIMSK3, OCIE3A);
+  cbi(PORTB,PB2);
 }
 
 void tone(unsigned int freq) {
@@ -198,34 +237,36 @@ void toneSetup() {
   sei();
 }
 
-void delay(unsigned int m) {
-  unsigned int start = millis();
-  while(millis() - start < m);
+void delay(unsigned long ms) {
+  unsigned long m = millis();
+  while (millis() - m < ms );
 }
 
+unsigned long aux = 0;
+int thisNote = 0;
+int noteDuration = 0;
+bool sound = true;
 
 int main() {
+  initTime();
+
   toneSetup();
 
-  int size = sizeof(melody) / sizeof(int);
-  for (int thisNote = 0; thisNote < size; thisNote++) {
-
-    // to calculate the note duration, take one second
-    // divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int noteDuration = 1000 / tempo[thisNote];
-
-    tone(melody[thisNote]);
-    delay(noteDuration);
-
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    int pauseBetweenNotes = noteDuration * 1.30;
-    delay(pauseBetweenNotes);
-
-    noTone();
-
+  for(;;) {
+    if (millis()  > aux + noteDuration) {
+      if (sound) {
+          noteDuration = 1000 / tempo[thisNote];
+          tone(melody[thisNote]);
+      } else {
+          noTone();
+          noteDuration *= 1.3;
+          thisNote++;
+      }
+      aux = millis();
+      sound = !sound;
+    }
   }
+
 
   return 0;
 }
