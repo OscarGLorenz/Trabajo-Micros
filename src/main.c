@@ -10,7 +10,7 @@
 // Numero de pasajeros subidos a la atraccion
 int pasajerosListos = 0;
 // Estado del pendulo
-bool penduloListo = false;
+bool penduloListo = true;
 
 // TarjeteMonedero sutituto
 unsigned long debounce = 0;
@@ -18,11 +18,6 @@ unsigned long debounce = 0;
 // Callback de nuevo pasajero
 void nuevoPasajero() {
 	pasajerosListos++;
-	if (pasajerosListos >= 4 && penduloListo) {
-		atraccionIniciar();
-		penduloListo = false;
-		pasajerosListos -= 4;
-	}
 }
 
 // Callback de finalización
@@ -61,6 +56,12 @@ void loop() {
 	if (!rbi(PINK,SW3) && millis() - debounce > 500 ) {
 		debounce = millis();
 		nuevoPasajero();
+	}
+
+	if (pasajerosListos >= 4 && penduloListo) {
+		atraccionIniciar();
+		penduloListo = false;
+		pasajerosListos -= 4;
 	}
 
 }

@@ -75,10 +75,9 @@ ISR(SO5_vect) {
 	}
 }
 
+static bool L4on = true;
+static unsigned int L4tiempo = 0 ;
 void parpadearL4(unsigned int on, unsigned int off) {
-	static bool L4on = false;
-	static unsigned int L4tiempo = 0 ;
-
 	if (L4on){
 		if (millis()-L4tiempo > on){
 			L4on = false;
@@ -109,7 +108,6 @@ void atraccionSetup() {
 	sbi(SO5_MASK, SO5);
 
 	sei();
-
 }
 
 void atraccionLoop() {
@@ -210,7 +208,7 @@ void atraccionLoop() {
 			auxTime = millis();
 		} else if (mode == CARGA) {
 			mode = LOBOTOMIA;
-			cbi(OUTRUT,L3); // Toggle M2_dir
+			cbi(OUTRUT,L3); // Clear L3
 		}
 	}
 
@@ -219,8 +217,10 @@ void atraccionLoop() {
 		parpadearL4(500,10000);
 	else if (mode == LOBOTOMIA ||mode == CATASTROFE||mode == EMERGENCIA )
 		parpadearL4(200,1000);
-	else
+	else {
 		cbi(OUTRUT,L4);
+		L4on = true;
+	}
 
 	// Data dump
 	static long int pocoPoco = 0;

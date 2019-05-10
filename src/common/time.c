@@ -5,21 +5,24 @@
 #include "pinout.h"
 #include "macros.h"
 
-volatile unsigned long millis_cnt = 0;
+static volatile unsigned long millis_cnt = 0;
 
+// Tiempo en milisegundos
 unsigned long millis() {
   return millis_cnt;
 }
 
+// Tiempo en microsegundos
 unsigned long micros() {
   return millis_cnt * 1000 + TCNT1;
 }
 
-
+// Esta interrupción salta cada ms
 ISR(TIMER1_COMPA_vect) {
   millis_cnt++;
 }
 
+// Rutina de configuración
 void initTime() {
   cli();
 
@@ -47,6 +50,3 @@ void initTime() {
 
   sei();
 }
-
-
-
