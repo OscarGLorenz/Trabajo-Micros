@@ -3,7 +3,6 @@
 #include "time.h"
 #include "macros.h"
 #include "pinout.h"
-#include "monederoVars.h"
 #include "serial.h"
 
 #define SERIAL_DEBUG 
