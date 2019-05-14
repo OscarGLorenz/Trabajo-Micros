@@ -5,11 +5,22 @@
 
 #include "atraccion.h"
 
-// Callback de atraccion finalizada
-static void (*callback) ();
+// CALLBACK
+static void (*finalizado) ();
+static void (*funcionamiento) ();
+static void (*stop) ();
+
 void atraccionSetCallbackFinalizado(void(*f)()) {
-	callback = f;
+	finalizado = f;
 }
+void atraccionSetCallbackFuncionamiento(void(*f)()) {
+	funcionamiento = f;
+}
+void atraccionSetCallbackStop(void(*f)()) {
+	stop = f;
+}
+// CALLBACK
+
 
 // Variables auxiliares para el encoder
 static volatile long int pos = 0;
@@ -122,6 +133,7 @@ void atraccionLoop() {
 			sbi(OUTRUT,M2_en);
 			cbi(OUTRUT,L3);
 			auxTime= millis();
+			funcionamiento();
 		}
 		break;
 
@@ -159,7 +171,7 @@ void atraccionLoop() {
 			mode = ESPERA;
 			cbi(OUTRUT,M2_en);
 			cbi(OUTRUT,M2_di);
-			callback();
+			finalizado();
 		}
 		break;
 
@@ -193,20 +205,25 @@ void atraccionLoop() {
 	// Boton de emergencia
 	if (!rbi(PINK,SW1)) {
 		if (mode == ROTA) {
+			stop();
 			mode = EMERGENCIA;
 			dir = !dir;
 			tbi(OUTRUT,M2_di); // Toggle M2_dir
 			auxTime = millis();
 		} else if (mode==CUELGA || mode==ESPERA) {
+			stop();
 			mode = LOBOTOMIA;
 		} else if(mode == FRENA) {
+			stop();
 			mode = EMERGENCIA;
 		} else if (mode == GIRA) {
+			stop();
 			mode = CATASTROFE;
 			dir = !dir;
 			tbi(OUTRUT,M2_di); // Toggle M2_dir
 			auxTime = millis();
 		} else if (mode == CARGA) {
+			stop();
 			mode = LOBOTOMIA;
 			cbi(OUTRUT,L3); // Clear L3
 		}

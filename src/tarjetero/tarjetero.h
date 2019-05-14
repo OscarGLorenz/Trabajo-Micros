@@ -6,5 +6,8 @@ void tarjeteroLoop();
 void tarjeteroSetup();
 
 void tarjeteroSetCallbackCorrecto(void(*f)());
+void tarjeteroSetCallbackError(void(*f)());
+
+void tarjeteroStop();
 
 #endif

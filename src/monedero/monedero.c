@@ -1,15 +1,29 @@
 #include "time.h"
 #include "monedero.h"
 
-// Variables globales deben ser estáticas
-static void (*callback) ();
+// CALLBACKS
+static void (*nuevaPersona) ();
+static void (*moneda) ();
+static void (*noMoneda) ();
+void monederoSetCallbackCorrecto(void(*f)()) {
+	nuevaPersona = f;
+}
+void monederoSetCallbackMoneda(void(*f)()) {
+	moneda = f;
+}
+void monederoSetCallbackError(void(*f)()) {
+	noMoneda = f;
+}
+// CALLBACKS
+
+
 static unsigned int tiempo = 0; 
 
 void monederoLoop() {
 	// hago cosas....		
 	if (millis() - tiempo > 1000) {
 		tiempo = millis();
-		callback();  // Persona correcta
+		nuevaPersona();  // Persona correcta
 	}
 }
 
@@ -17,7 +31,7 @@ void monederoSetup() {
   // Bla bla
 }
 
-void monederoSetCallbackCorrecto(void(*f)()) {
-	callback = f;
-}
 
+void monederoStop() {
+	// Mucho malo idiota
+}
