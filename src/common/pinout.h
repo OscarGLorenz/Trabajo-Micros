@@ -58,5 +58,9 @@
 #define SW1 PK0 	//9  connected to PCINT16
 #define SW2 PK1 	//10 connected to PCINT17
 #define SW3 PK2 	//11 connected to PCINT18
+// Buzzer
+#define BUZ PB2
+#define PORT_BUZ PORTB
+#define DDR_BUZ DDRB
 
 #endif

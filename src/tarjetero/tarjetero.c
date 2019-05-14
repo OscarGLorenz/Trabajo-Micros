@@ -1,15 +1,25 @@
 #include "time.h"
 #include "tarjetero.h"
 
-// Variables globales deben ser estáticas
-static void (*callback) ();
+// CALLBACKS
+static void (*nuevaPersona) ();
+static void (*error) ();
+void tarjeteroSetCallbackCorrecto(void(*f)()) {
+	nuevaPersona = f;
+}
+void tarjeteroSetCallbackError(void(*f)()) {
+	error = f;
+}
+// CALLBACKS
+
+
 static unsigned int tiempo = 0; 
 
 void tarjeteroLoop() {
 	// hago cosas....		
 	if (millis() - tiempo > 1000) {
 		tiempo = millis();
-		callback(); // Persona correcta
+		nuevaPersona(); // Persona correcta
 	}
 }
 
@@ -17,7 +27,8 @@ void tarjeteroSetup() {
   // Bla bla
 }
 
-void tarjeteroSetCallbackCorrecto(void(*f)()) {
-	callback = f;
-}
 
+
+void tarjeteroStop() {
+	// Mucho malo mucho tonto
+}
