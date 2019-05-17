@@ -12,14 +12,14 @@ void atraccionSetCallbackFinalizado(void(*f)()) {
 }
 
 // Variables auxiliares para el encoder
-static volatile long int pos = 0;
-static volatile bool dir = 0;
+static volatile int pos = 0;
+static volatile uint8_t dir = 0;
 static volatile long int now = 0;
 static volatile long int past = 0;
 static volatile long int dif = 0;
 static volatile long int lastIn = 0;
-static float times[5];
-static unsigned int bouncing_time=500;
+static volatile long times[5];
+static const unsigned int bouncing_time=500;
 
 enum mode_t {ESPERA,CUELGA,ROTA,GIRA,FRENA,EMERGENCIA,CATASTROFE,LOBOTOMIA,CARGA};
 static enum mode_t mode = ESPERA;
@@ -36,25 +36,67 @@ void atraccionIniciar() {
 
 ISR(SO4_vect){
 
-	if (dir) pos++;
+/*	if (dir) pos++;
 	else pos--;
+*/
+
+// begin asm 1
+uint8_t LSB = pos;
+uint8_t MSB = pos >> 8;
+
+  asm volatile(
+  " push r16\n"
+  " push r17\n"
+  " mov r16,%2\n"
+  " tst r16 \n"
+  " breq zero \n"
+  //restar 1
+
+  "ldi r17, 1 \n"
+  "sub %0, r17 \n"
+  "clr r17 \n"
+  "sbc %1, r17 \n"
+
+  " jmp end\n"
+  "zero: \n"
+  //sumar 1
+  "ldi r17, 1 \n"
+  "add %0, r17 \n"
+  "clr r17 \n"
+  "adc %1, r17 \n"
+  "end: \n"
+
+  //" \n"
+
+  "pop r16 \n"
+  "pop r17 \n"
+
+  :"+r" (LSB) , "+r" (MSB) :"r" (dir):
+  );
+
+  pos = LSB | (MSB << 8);
+
+// end asm 1
+
 	now = millis();
 	dif = now - past;
+
 
 	for (int j=0;j<4;j++){
 		times[j]=times[j+1];
 	}
 	times[4] = dif;
 
-	int aux = (((times[0]+times[1]) * 2.5) - (times[2]+times[3]+times[4]));
+	int aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])   ;
 
 	if (now - lastIn > bouncing_time){
 		if (aux < 0){
 
-			if (pos > 40  || pos < -40 ){
-				bouncing_time = 3 *(times[2]+times[3]+times[4]);
-				if (bouncing_time < 500) bouncing_time = 500;
-			}else bouncing_time = 500;
+			// if (pos > 40  || pos < -40 ){
+			// 	bouncing_time = 3 *(times[2]+times[3]+times[4]);
+			// 	if (bouncing_time < 500) bouncing_time = 500;
+			// }else
+
 
 			dir = !dir;
 			tbi(OUTRUT,M2_di); // Toggle M2_dir
