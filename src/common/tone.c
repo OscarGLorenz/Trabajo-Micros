@@ -4,10 +4,25 @@
 #include "tone.h"
 #include "pinout.h"
 #include "melody.h"
+#include "time.h"
 #include "macros.h"
+#include <string.h>
+#include <stdlib.h>
+
+volatile long times = 0;
+volatile unsigned int note = 0;
+Song * song;
+
+void setupMelody(Song *  s, const unsigned int * note, const unsigned int * del,  const unsigned int n) {
+    s->notes =(unsigned int *) malloc(2*n);
+    memcpy(s->notes,note,n);
+    s->delays = (unsigned int *) malloc(2*n);
+    memcpy(s->delays,del,n);
+    s->n = n;
+}
 
 ISR(TIMER3_COMPA_vect) {
-        tbi(PORT_BUZ,BUZ);
+   tbi(OUTRUT,M2_en);
 }
 
 void tone(unsigned int freq) {
@@ -17,7 +32,6 @@ void tone(unsigned int freq) {
     }
 
     unsigned int counter = 1e6/freq/2;
-
     // Enable compare A on timer 3
     sbi(TIMSK3, OCIE3A);
 
@@ -25,7 +39,7 @@ void tone(unsigned int freq) {
 }
 
 void toneSetup() {
-    sbi(DDR_BUZ,BUZ);
+    sbi(DDR_OUTRUT,M2_en);
 
     cli();
 
@@ -45,11 +59,28 @@ void toneSetup() {
     TCNT3 = 0;
 
     sei();
+
+
+    setupMelody(&tetris,tetrisNotas,tetrisDelays,tetrisN);
 }
+
+
 
 void noTone() {
     // Disable compare A on timer 3
     cbi(TIMSK3, OCIE3A);
     cbi(PORT_BUZ,BUZ);
+}
+
+
+unsigned long ultimaNota = 0;
+unsigned int nota = 0;
+void sonidito() {
+    if ((millis() - ultimaNota > tetrisDelays[nota-1]*2)) {
+		tone(tetrisNotas[nota]);
+		ultimaNota = millis();
+		nota++;
+		if (nota > tetris.n) noTone();
+	}
 }
 

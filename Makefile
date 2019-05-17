@@ -26,6 +26,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 upload:
 	avr-objcopy -j .text -j .data -O ihex $(TARGET) $(HEX)
 	avrdude -c $(PROGRAMMER) -p $(AVRDUDEMCU) -U flash:w:"$(HEX)":a
+	avr-size -C --mcu=$(MCU)  $(TARGET)
 
 init:
 	mkdir -p build/common

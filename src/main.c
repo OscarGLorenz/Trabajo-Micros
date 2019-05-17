@@ -2,6 +2,7 @@
 #include "time.h"
 #include "pinout.h"
 #include "serial.h"
+#include "tone.h"
 
 #include "atraccion/atraccion.h"
 #include "tarjetero/tarjetero.h"
@@ -14,6 +15,7 @@ bool penduloListo = true;
 
 // TarjeteMonedero sutituto
 unsigned long debounce = 0;
+
 
 // Callback de nuevo pasajero
 void nuevoPasajero() {
@@ -34,6 +36,8 @@ void setup() {
 
 	// Time
   initTime();
+  //toneSetup();
+
 
   // Setups
 	atraccionSetup();
@@ -45,10 +49,12 @@ void setup() {
   //	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
 
+
 }
 
 void loop() {
 	atraccionLoop();
+
   //	tarjeteroLoop();
   //	monederoLoop();
 
@@ -63,6 +69,9 @@ void loop() {
 		penduloListo = false;
 		pasajerosListos -= 4;
 	}
+
+
+//	sonidito();
 
 }
 

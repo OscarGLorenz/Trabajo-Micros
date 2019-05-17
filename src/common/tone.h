@@ -11,4 +11,5 @@ void toneSetup();
 
 void noTone();
 
+void sonidito();
 #endif //TRABAJO_MICROS_TONE_H

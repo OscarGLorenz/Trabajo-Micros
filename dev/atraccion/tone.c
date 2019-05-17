@@ -5,6 +5,7 @@
 
 #include "time.h"
 #include "macros.h"
+#include "pinout.h"
 
 #define NOTE_B0  31
 #define NOTE_C1  33
@@ -190,13 +191,13 @@ int tempo[] = {
 #define F_INT 1E6
 
 ISR(TIMER3_COMPA_vect) {
-  tbi(PORTB,PB2);
+  tbi(OUTRUT,M2_en);
 }
 
 void noTone() {
   // Disable compare A on timer 3
   cbi(TIMSK3, OCIE3A);
-  cbi(PORTB,PB2);
+  cbi(OUTRUT,M2_en);
 }
 
 void tone(unsigned int freq) {
@@ -216,6 +217,7 @@ void tone(unsigned int freq) {
 
 void toneSetup() {
   sbi(DDRB,PB2);
+    sbi(DDR_OUTRUT,M2_en);
 
   cli();
 
@@ -251,6 +253,7 @@ int main() {
   initTime();
 
   toneSetup();
+
 
   for(;;) {
     if (millis()  > aux + noteDuration) {
