@@ -4,9 +4,9 @@
 #include "macros.h"
 #include "pinout.h"
 #include "serial.h"
+#include <avr/interrupt.h>
 
 #define SERIAL_DEBUG 
-
 #define readSO2() rbi(PIND,INT1)
 #define readSO3() rbi(PIND,INT2)
 #define readSW2() rbi(PIND,INT2)
@@ -75,7 +75,7 @@ ISR(SO2_vect){   // ISR of first optic sensor
 		}
 		} else {
 		if (coin_state == 2){
-			t2d = micros;
+			t2d = micros();
 			coin_state = 3;
 			#ifdef SERIAL_DEBUG
 			serialPrintLn("Sale SO2");
@@ -117,6 +117,25 @@ ISR(SO3_vect){   // ISR of first optic sensor
 		}
 	}
 }
+
+
+void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
+	payment_money += cents;           	// Add coin value to money of payment in progress
+	serialPrint("Coin added to payment, total inserted money: ");
+	serialPrintInt(payment_money);
+	serialPrintLn(" cents.\n");
+	if (payment_money >= 120){
+		callback();
+		serialPrint("***** New payment completed: ");
+		serialPrintInt(payment_money);
+		serialPrintLn(" *****");
+		payment_money = 0;
+	}
+	serialPrint("\n");
+	//openCollector();
+}
+
+
 
 void compareCoin(float ds){
 	uint8_t cents;
@@ -160,21 +179,9 @@ void newCoin(){
 	compareCoin(ds);
 }
 
-void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
-	payment_money += cents;           	// Add coin value to money of payment in progress
-	serialPrint("Coin added to payment, total inserted money: ");
-	serialPrintInt(payment_money);
-	serialPrintLn(" cents.\n");
-	if (payment_money >= 120){
-		callback();
-		serialPrint("***** New payment completed: ");
-		serialPrintInt(payment_money);
-		serialPrintLn(" *****");
-		payment_money = 0;
-	}
-	serialPrint("\n");
-	//openCollector();
-}
+
+
+
 
 void monederoLoop() {
 	if (coin_state == 4){
