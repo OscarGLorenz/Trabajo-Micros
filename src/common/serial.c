@@ -50,21 +50,18 @@ void serialPrintFloat(float f) {
 }
 
 unsigned char serialReadChar(){
-	while(!rbi(UCSR2A,RXC2))); 	//wait for the charater to be fully received
-	return(UDR2); 				//return the received charater
+  if(rbi(UCSR0A,RXC0)) return(UDR0); //wait for the charater to be fully received
+  else return 0;        //return the received charater
 }
 
-unsigned char * serialReadStringUntil(char endCharacter){
-	unsigned char string[20], x;
-	uint8_t i = 0;
-	while((x = serialReadChar() != endCharacter){ //receive the characters until ENTER is pressed (ASCII for ENTER = 13)
-		string[i++] = x; //and store the received characters into the array string[] one-by-one
-	}
-	string[i] = '\0'; //insert NULL to terminate the string
-	return(string); //return the received string
-}
-
-unsigned char * serialReadString(){
-	return serialReadStringUntil('\n');
+void serialReadString(char* command){
+  unsigned char x;
+  uint8_t i = 0, reading = 1;
+  do{ //receive the characters until ENTER is pressed (ASCII for ENTER = 13)
+   x = serialReadChar();
+   if ((x) && (x != '\n')) command[i++] = x; //and store the received characters into the array string[] one-by-one
+   else reading = 0;
+  } while (reading);
+  command[i] = '\0'; //insert NULL to terminate the string
 }
 	

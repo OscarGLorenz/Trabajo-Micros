@@ -124,7 +124,56 @@ void serialWelcome(){
 	printLimitsAll();
 }
 
-/*
+void serialWatchdog(){
+  static uint8_t delay = 0;
+  static char command[20]="";
+  if(delay < 255) {
+    delay++;
+  }
+  else {
+    delay = 0;
+    if (rbi(UCSR0A,RXC0)){
+    serialReadString(command);
+    serialPrint(command);
+    if(!strcmp(command,"cal")){
+		serialPrintLn(": CALIBRATE MODE, SELECT COIN!");
+		calibrate = 1;
+    } else if (!strcmp(command,"run")){
+		serialPrintLn(": RUN MODE");
+		calibrate = 0;
+		printLimitsAll();
+	} else if (!strcmp(command,"res")){
+		serialPrintLn(": RESET LIMIT OF SELECTED COIN");
+		resetLimit(&coins[coin_id]);
+	} else if (!strcmp(command,"all")){
+		serialPrintLn(": SHOW CALIBRATED RANGES");
+		printLimitsAll();
+    } else if (!strcmp(command,"2")){
+		coin_id = 1;
+		serialPrintLn(": configuring 2c coin");
+	} else if (!strcmp(command,"5")){
+		coin_id = 2;
+		serialPrintLn(": configuring 5c coin");
+    } else if (!strcmp(command,"10")){
+		coin_id = 3;
+		serialPrintLn(": configuring 10c coin");
+	} else if (!strcmp(command,"20")){
+		coin_id = 4;
+		serialPrintLn(": configuring 20c coin");
+	} else if (!strcmp(command,"50")){
+		coin_id = 5;
+		serialPrintLn(": configuring 50c coin");
+	} else if (!strcmp(command,"100")){
+		coin_id = 6;
+		serialPrintLn(": configuring 100c coin");
+	} else if (!strcmp(command,"200")){
+		coin_id = 7;
+		serialPrintLn(": configuring 500c coin");
+    else serialPrintLn(": error, command not available");
+    }
+  }
+}
+ /*
 void serialWatchdog(){
   if (Serial.available()){
     String command = Serial.readString();
