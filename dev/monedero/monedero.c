@@ -5,6 +5,7 @@
 #include "../common/pinout.h"
 #include "../common/serial.h"
 #include <avr/interrupt.h>
+#include <string.h>
 
 #define SERIAL_DEBUG 
 #define readSO2() rbi(PIND,INT1)
@@ -20,9 +21,9 @@ static void (*callback) ();
 // Detection variables 
 static unsigned long t, t2u, t3u, t2d, d, s;
 static uint8_t payment_money;
-static uint8_t coin_state, calibrate;
+static uint8_t coin_state, calibrate, coin_id;
 
-static struct coin_params {
+struct coin_params {
 	float ds_min;
 	float ds_max;
 };
@@ -141,12 +142,12 @@ void serialWatchdog(){
 		coin_id = 5;
 		serialPrintLn(": configuring 50c coin");
 	} else if (!strcmp(command,"100")){
-		coin_id = 6;
+		coin_id = 6; 
 		serialPrintLn(": configuring 100c coin");
 	} else if (!strcmp(command,"200")){
 		coin_id = 7;
 		serialPrintLn(": configuring 200c coin");
-    else serialPrintLn(": error, command not available");
+	} else serialPrintLn(": error, command not available");
     }
   }
 }
