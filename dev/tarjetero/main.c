@@ -1,12 +1,6 @@
-/*
-   Tarjetero.c
-
-   Created: 08/05/2019 11:57:37
-   Author:
-*/
-
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
 #include "time.h"
 #include "pinout.h"
 #include "serial.h"
@@ -18,24 +12,49 @@
 #define LRG 0           //DEFINIMOS RAYAS LARGAS CON CÓDIGO 0
 #define CRT 1           //DEFINIMOS RAYAS CORTAS CON CÓDIGO 1
 
-int bandera1;                             //FLANCO DE INICIO DE RAYA DETECTADO
-int bandera2;                           //FLANCO DE FIN DE RAYA DETECTADO
-int num_rayitas;                          //RAYA ACTUAL EN LA LECTURA
-float tiempo;                           //VARIABLE AUXILIAR PARA GUARDAR LA DURACIÓN DE LA RAYA ACTUAL
-float tiempo_total;                         //TIEMPO TOTAL DE LA TARJETA, USADO PARA DISTINGUIR RAYAS LARGAS Y CORTAS
-float rayitas[NUM_TOTAL_RAYITAS];                 //VECTOR DONDE SE GUARDAN TIEMPOS
-char traducidoh[NUM_TOTAL_RAYITAS];                 //VECTOR BINARIO DONDE DISTINGUIMOS ENTRE RAYAS LARGAS (0) Y CORTAS (1)
-uint16_t aiuda;                           //UTILIZADO PARA ALGORITMO DE COMPARACIÓN Y ESTIMACIÓN. SE SACA A PARTIR DEL VECTOR traducidoh
-uint16_t a[] = {0x0123, 0x0456, 0x0789, 0x0097, 0x0531, 0x0642};  //POSIBLES COMBINACIONES DE TARJETAS
-uint16_t b[] = {123, 456, 789, 97, 531, 642};
-int n = 6;                              //NÚMERO TOTAL DE TARJETAS POSIBLES. AUXILIAR.
-int muchobueno = 0;                         //DETECTADA UNA TARJETA VÁLIDA
-unsigned long int luz;                              //VARIABLE PARA ENCENDER EL LED DURANTE 1 SEGUNDO SIN BLOQUEOS
+static unsigned long flancos[54];	//Vector para guardar tiempos segun el flanco. Son 52 flancos y anadimos 2 por falsso flancos al inicio
+static unsigned long rayas[27];		//Vector con la duracion de cada rayas. Son 26 rayas y anadimos 1 por falsos flancos al inicio
+static unsigned binario[27];		//Para tener la tarjeta en binario. Son 26 rayas y anadimos 1 por falsos flancos al inicio
+static int flanco_actual;			//Vamos contando el numero de flancos que vamos detectando
+static int traduce;					//Bandera para empezar a traducir
+static uint16_t hexadecimal;
+static uint16_t a[] = {0x1230, 0x4560, 0x7890, 0x0970, 0x5310, 0x6420};  //POSIBLES COMBINACIONES DE TARJETAS
+static uint16_t b[] = {123, 456, 789, 97, 531, 642};
+static int luz;
+static int encendido;
+static int n;
+ISR(SO1_vect) {
+	flancos[flanco_actual] = micros();
+	serialPrint("F");
+	serialPrintInt(flanco_actual);
+	if(flanco_actual%2 && flanco_actual) {
+		rayas[(flanco_actual)/2] = flancos[flanco_actual]-flancos[flanco_actual-1];
+		//serialPrintInt(rayas[(flanco_actual)/2]);
+		serialPrint(" T\n");
+	}
+	if(flanco_actual>= 53){
+		flanco_actual=0;
+		traduce = 1;
+	}
+	flanco_actual++;
+	if(flanco_actual>1){
+		if((flancos[flanco_actual-1]-flancos[flanco_actual-2])>500000){
+			//flancos[0] = flancos[flanco_actual];
+			flanco_actual=0;
+		}
+	}
+}
+
+/*void corrige(){ //Para evitar falsos flancos o si se pasa mal la tarjeta
+	if(((flancos[flanco_actual]-flancos[flanco_actual-1])>10000000) && (flanco_actual>1)){
+		flanco_actual = 0;
+	}
+}*/
 
 int whoMax(float *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
   float max = c[0];
   int who = 0;
-  for (int i = 1; i < n; i++) {
+  for (int i = 1; i <n;  i++) {
     if (c[i] > max) {
       who = i;
       max = c[i];
@@ -50,98 +69,114 @@ float sumData(uint16_t c) {   //NÚMERO DE '1' EN EL DATO C. USADO PARA CALCULAR
   }
   return howmuch;
 }
-void aiudado() {
-  aiuda = 0;
-  for (int i = 20; i > 8; i--) {
-    if (traducidoh[i]) {
-      aiuda  |= (1 << (20 - i));
-    }
-  }
-  float jaccard[n];
-  for (int j = 0; j < n; j++) {
-    jaccard[j] = sumData( a[j] & aiuda) / sumData( a[j] | aiuda);
-  }
-  if ((jaccard[whoMax(jaccard)] > 0.99) || ((aiuda & 0x0FF) == 0x0FF)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.
-	serialPrint("\t Tarjeta detectada: ");
-	serialPrintInt(b[whoMax(jaccard)]);
-    //digitalWrite(S01, HIGH);
-    tbi(OUTRUT, L1);
-    luz = millis();
-	muchobueno=1;
-  }
+void tanimoto(){
+	float jaccard[n];
+	serialPrint("Pesos jaccard \t");
+	for (int j = 0; j < n; j++) {
+		jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
+		serialPrintFloat(jaccard[j]);
+		serialPrint("\t");
+	}
+	if ((jaccard[whoMax(jaccard)] > 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.
+		serialPrint("\t Tarjeta detectada: ");
+		serialPrintInt(b[whoMax(jaccard)]);
+		//digitalWrite(S01, HIGH);
+		sbi(OUTRUT, L1);
+		luz = millis();
+		encendido=1;
+	}
   serialPrint("\n");
 }
 
-//PASAMOS DE UN VECTOR DE TIEMPOS A UN VECTOR QUE NOS DIGA QUÉ RAYAS SON CORTAS Y QUÉ RAYAS SON LARGAS
-void Traduce() {
-  float limite = 0;
-  for (int i = 1; i < NUM_TOTAL_RAYITAS; i++) {
-    limite = limite + rayitas[i];
-  }
-  limite = limite / (NUM_TOTAL_RAYITAS);
-  for (int i = 1; i < NUM_TOTAL_RAYITAS - 1; i++) {
-    if (rayitas[i] > limite) {
-      traducidoh[i] = LRG;
+void traduceHex(){
+	//Comprobamos que la tarjeta es válida (no se pasa al revés)
+	hexadecimal = 0;
+		for(int i = 10; i<22; i++){					//falso flanco
+			if(binario[i]){							//Sumamos 1 para evitar el falso flanco
+				hexadecimal |= (1 << (25 - i));		//hexadecimal = 25-rayas[i];
+			}
+		}
+		hexadecimal&=0xFFF0;
+		serialPrint("Traducido a hex:");
+		serialPrintULong(hexadecimal);
+		serialPrint("\n");
+	tanimoto();
+}
+
+void traduceBin(){
+	serialPrint("Bin ");
+	//int largo = 0;
+	long limite = (rayas[25]+rayas[24]+rayas[23]+rayas[22]+rayas[7]+rayas[8]+rayas[9]+rayas[10])/8;		//8 en vez de 3 por falso flanco al inicio
+	/*for (int i = 2; i<26; i++){											//Desplazado 1 por falsos flancos al inicio
+		if(!largo){
+			if(rayas[i]<limite*1.1){
+				binario[i] = CRT;
+				serialPrint("1");
+			}
+			else{
+				binario[i] = LRG;
+				largo = 1;
+				serialPrint("0");
+				limite = rayas[i];
+			}
+		}
+		else{
+			if(rayas[i]<limite*0.9){
+				binario[i] = CRT;
+				serialPrint("1");
+				largo = 0;
+				limite = rayas[i];
+			}
+			else{
+				binario[i] = LRG;
+				serialPrint("0");
+			}
+		}
+	}*/
+  for (int i = 2; i < 26; i++) {
+    if (rayas[i] > (unsigned long int) limite) {
+      binario[i] = LRG;
+	  serialPrintInt(LRG);
     }
     else {
-      traducidoh[i] = CRT;
+      binario[i] = CRT;
+	  serialPrintInt(CRT);
     }
   }
-  aiudado();
+  serialPrint("\n");
+	traduceHex();
 }
 
-//VAMOS GUARDANDO LA DURACIÓN DE LAS RAYAS. ES POSIBLE QUE HAYA QUE PASAR A LA INTERRUPCIÓN EL ALMACENAMIENTO DE TIEMPOS PARA MEJORAR LA PRECISIÓN.
-void cuenta() {
-  if (bandera1 == 1 && bandera2 == 0) {     //HA ENTRADO UNA NUEVA RAYA
-    tiempo = micros();
-    if (num_rayitas == 1) tiempo_total = micros();
-    bandera2 = 1;
-    if (num_rayitas > 2 && rayitas[num_rayitas - 1] > 30000) num_rayitas = 0;
-  }
-  else if (bandera1 == 0 && bandera2 == 1) {  //SALIMOS DE LA RAYA ACTUAL
-    tiempo = micros() - tiempo;
-    bandera2 = 0;
-    rayitas[num_rayitas] = tiempo;
-    if (num_rayitas == NUM_TOTAL_RAYITAS - 2) {
-      tiempo_total = micros() - tiempo_total;
-      Traduce();
-    }
-    num_rayitas++;
-    if (num_rayitas == NUM_TOTAL_RAYITAS) num_rayitas = 0;
-  }
-}
-  ISR(SO1_vect) {
-    bandera1 = !bandera1;
-  }
-
-
-  void setup() {
-	//pinMode(SO1, INPUT);
-    sbi(INT_MASK, SO1);
-	//pinMode(L1, OUTPUT);
-	sbi(DDR_OUTRUT,L1);
+void setup(){
+	//pinMode(S01, INPUT); Pin del sensor como entrada
+	sbi(INT_MASK, SO1);
+	//pinMode(L1, OUTPUT); Pin del led como salida
+	sbi(DDR_OUTRUT, L1);
+	//attachInterrupt(digitalPinToInterrupt(S01,), Interrupcion, CHANGE);
+	sbi(CTRL_INT, SO1_C0);
+	cbi(CTRL_INT, SO1_C1);
+	//digitalWrite(L1, LOW); Poner led apagado
 	cbi(OUTRUT, L1);
-	//COMENTAR initTime AL PASAR AL PROGRAMA CONJUNTO!!!!!!!!!!!!!!!!!!
+	//Iniciamos timer para millis() y micros()
 	initTime();
 	serialBegin(9600);
-    bandera1 = 0;
-    bandera2 = 0;
-    num_rayitas = 0;
-    tiempo_total = 0;
-	muchobueno=0;
-    //attachInterrupt(digitalPinToInterrupt(S01), []() {bandera1 = !bandera1;}, CHANGE);
-    sbi(CTRL_INT, SO1_C0);
-    cbi(CTRL_INT, SO1_C1);
-	bandera1=millis();
-  }
+	traduce=0;
+	encendido=0;
+	flanco_actual=0;
+	n=6;
+}
 
-  int main(void) {
-    setup();
-    while (1) {
-      cuenta();
-      if (muchobueno && ((millis() - luz) > 1000)) {
-        tbi(OUTRUT, L1);
-		muchobueno = 0;
-      }
-    }
-  }
+int main(void){
+	setup();
+	for(;;){
+		//corrige();
+		if(traduce){
+			traduceBin();
+			traduce=0;
+		}
+		if(encendido && (millis()-luz == 1000)){
+			cbi(OUTRUT, L1);
+			encendido = 0;
+		}
+	}
+}
