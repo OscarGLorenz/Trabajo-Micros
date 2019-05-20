@@ -7,7 +7,6 @@
 #include "../common/time.h"
 #include "../common/pinout.h"
 #include "../common/serial.h"
-#include "monederoVars.h"     // Load pre-calibrated limits for coin detection
 
 #define SERIAL_DEBUG         // Uncomment for serial debugging
 
@@ -17,6 +16,36 @@
 #define writeM1_en(value) wbi(PINL,4,value)
 #define writeM1_bk(value) wbi(PINL,6,value)
 #define writeL2(value) wbi(PINL,1,value)
+
+// Global variables for monedero #########################################
+
+uint8_t queue;
+uint8_t payment_money;
+
+// Detection variables --------------
+unsigned long t2, t3, w2, w3, d, s;
+
+uint8_t coin_state;
+uint8_t calibrate;
+uint8_t coin_id;
+
+struct coin_params { 
+	float ds_min;
+	float ds_max;
+};
+
+struct coin_params coins[8];
+
+void loadDefaultLimits(){       // Adjust when limits have been calibrated for adequate statistical sample
+	coins[0].ds_min = 10.0; coins[0].ds_max = 0.00;
+	coins[1].ds_min = 4.38; coins[1].ds_max = 5.14;
+	coins[2].ds_min = 2.57; coins[2].ds_max = 2.70;
+	coins[3].ds_min = 3.28; coins[3].ds_max = 3.76;
+	coins[4].ds_min = 2.25; coins[4].ds_max = 2.30;
+	coins[5].ds_min = 1.75; coins[5].ds_max = 1.85;
+	coins[6].ds_min = 1.92; coins[6].ds_max = 2.08;
+	coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;
+}
 
 // Interrupt Service Routines ######################################
 
@@ -173,52 +202,6 @@ void serialWatchdog(){
     }
   }
 }
- /*
-void serialWatchdog(){
-  if (Serial.available()){
-    String command = Serial.readString();
-    if (command.equalsIgnoreCase("CALIB\n")){
-      calibrate = 1;
-      serialPrintLn("Entered calibration mode.\n");
-    }
-    else if (command.equalsIgnoreCase("RUN\n")) {
-      calibrate = 0;
-      serialPrintLn("Exited calibration mode.\n");
-      printLimitsAll();
-    }
-    else if (command.equalsIgnoreCase("RESET\n")) {
-      resetLimit(&coins[coin_id]);
-      serialPrint("Reset ratios limits of coin ID = ");
-      Serial.print(coin_id);
-      serialPrintLn(".\n");
-    }
-    else if (command.equalsIgnoreCase("ALL\n")) {
-      printLimitsAll();
-    }
-    else {
-      uint8_t calibrate_coin = command.toInt();
-      serialPrint("Will calibrate coin of ");
-      Serial.print(calibrate_coin);
-      serialPrintLn(" cents.\n");
-      switch(calibrate_coin) {
-        case 1: coin_id = 0; break;
-        case 2: coin_id = 1; break;
-        case 5: coin_id = 2; break;
-        case 10: coin_id = 3; break;
-        case 20: coin_id = 4; break;
-        case 50: coin_id = 5; break;
-        case 100: coin_id = 6; break;
-        case 200: coin_id = 7; break;
-      }
-    }
-  }
-}
-*/
-
-void wait(int milliseconds){
-	unsigned long int prev_time = millis();
-	while ((millis() - prev_time) < milliseconds) {}
-}
 
 void openCollector(){
 	writeM1_en(true);    	// Open coin slot
@@ -267,7 +250,6 @@ void compareCoin(float ds){
 	else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
 	else if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
 	else if ((ds >= coins[7].ds_min) && (ds <= coins[7].ds_max)) cents = 200;   // Object detected as 200c coin
-	//else if ((ds > coins[2].ds_max) || (ds < coins[7].ds_min)) cents = 1;   // Object detected as 1c coin
 	else {            // Object detected out of range
 		cents = 0;
 		serialPrintLn("Coin not detected in pre-calibrated ranges, try again.\n");
@@ -310,32 +292,22 @@ void newCoin(){
 void monederoConfig() {   // Configure I/O ports and interruptions for monedero block
 	while (rbi(PINK,SW1));
 	DDRL = 0xFF;		// Configure output port
-	
 	cli();
-	
-	// Interrupt triggers
-	sbi(EICRA,ISC10);
+	sbi(EICRA,ISC10);   // INT1 trigger
 	cbi(EICRA,ISC11);
-	sbi(EICRA,ISC20);
+	sbi(EICRA,ISC20);	// INT2 trigger
 	cbi(EICRA,ISC21);
-	
-	//Interrupt enable
-	sbi(EIMSK,INT1);
+	sbi(EIMSK,INT1);	// Interrupt mask enable
 	sbi(EIMSK,INT2);
-	
 	sei();
 }
 
 void monederoSetup() {  // #################################################
-  
   monederoConfig();
   loadDefaultLimits();
-  
   serialBegin(9600);
   serialWelcome();
-  
   writeM1_bk(true);
-
   calibrate = false;
   coin_state = 0;
   coin_id = 8;

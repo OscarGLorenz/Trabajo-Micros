@@ -1,9 +1,9 @@
 #include "monedero.h"
 
-#include "time.h"
-#include "macros.h"
-#include "pinout.h"
-#include "serial.h"
+#include "../common/time.h"
+#include "../common/macros.h"
+#include "../common/pinout.h"
+#include "../common/serial.h"
 #include <avr/interrupt.h>
 
 #define SERIAL_DEBUG 
@@ -13,12 +13,14 @@
 #define writeM1_bk(value) wbi(PINL,6,value)
 #define writeL2(value) wbi(PINL,1,value)
 
+#define CALIB_TIMEOUT 10000
+
 static void (*callback) ();
 
 // Detection variables 
-static unsigned long t2u, t3u, t2d, d, s;
+static unsigned long t, t2u, t3u, t2d, d, s;
 static uint8_t payment_money;
-static uint8_t coin_state;
+static uint8_t coin_state, calibrate;
 
 static struct coin_params {
 	float ds_min;
@@ -40,84 +42,116 @@ void loadDefaultLimits(){
 	coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;
 }
 
-void monederoConfig() {  
-	while (rbi(PINK,SW1));
-	DDRL = 0xFF;
-	
-	cli();
-	
-	// Interrupt triggers
-	sbi(EICRA,ISC10);
-	cbi(EICRA,ISC11);
-	sbi(EICRA,ISC20);
-	cbi(EICRA,ISC21);
-	
-	//Interrupt enable
-	sbi(EIMSK,INT1);
-	sbi(EIMSK,INT2);
-	
-	sei();
-}
+// Interrupt Service Routines ######################################
+
+void asm_ISR_SO2();
+void asm_ISR_SO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
-	if (readSO2()){
-		if (coin_state == 0){
-			t2u = micros();
-			coin_state = 1;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Entra SO2");
-			#endif
-			} else {
-			coin_state = 0;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Espurio SO2 - rise");
-			#endif
-		}
-		} else {
-		if (coin_state == 2){
-			t2d = micros();
-			coin_state = 3;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Sale SO2");
-			#endif
-			} else {
-			coin_state = 0;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Espurio SO2 - fall");
-			#endif
-		}
-	}
+	t = micros();
+	asm_ISR_SO2();
 }
 
 ISR(SO3_vect){   // ISR of first optic sensor
-	if (readSO3()){
-		if (coin_state == 1){
-			t3u = micros();
-			coin_state = 2;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Entra SO3");
-			#endif
-			} else {
-			coin_state = 0;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Espurio SO3 - rise");
-			#endif
-		}
-		} else {
-		if (coin_state == 3){
-			coin_state = 4;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Sale SO3");
-			#endif
-			} else {
-			coin_state = 0;
-			#ifdef SERIAL_DEBUG
-			serialPrintLn("Espurio SO3 - fall");
-			#endif
-		}
-	}
+	t = micros();
+	asm_ISR_SO3();
 }
 
+// CAL Functions ###################################################
+
+void printLimitsCoin(){
+	serialPrint("Now coin ID = ");
+	serialPrintInt(coin_id);
+	serialPrintLn(" ratios limits are:");
+	serialPrint("d/s min:\t"); serialPrintFloat(coins[coin_id].ds_min); serialPrint("\n");
+	serialPrint("d/s max:\t"); serialPrintFloat(coins[coin_id].ds_max); serialPrint("\n");
+	serialPrint("\n");
+}
+
+void printLimitsAll(){
+	serialPrintLn("Now coin ratios limits are:");
+	serialPrintLn("Coin type:\t0(1c)\t1(2c)\t2(5c)\t3(10c)\t4(20c)\t5(50c)\t6(1e)\t7(2e)");
+	serialPrintLn("\t\t-------------------------------------------------------------");
+	serialPrint("d/s min:\t"); 
+	for(int i = 0; i<8 ; i++) {
+		serialPrintFloat(coins[i].ds_min);
+		serialPrint("\t");
+	}
+	serialPrint("\nd/s max:\t");
+	for(int i = 0; i<8 ; i++) {
+		serialPrintFloat(coins[i].ds_max); 
+		serialPrint("\t");
+	}
+	serialPrintLn("\n");
+}
+
+void resetLimit(struct coin_params* coin){
+	coin->ds_min = 100;
+	coin->ds_max = 0.0;
+}
+
+void serialWelcome(){
+	serialPrintLn("Available commands:");
+	serialPrintLn("CAL - Calibrate ratios limits");
+	serialPrintLn("RUN - Exit calibration mode");
+	serialPrintLn("ALL - Print all ratios limits");
+	serialPrintLn("When in CAL mode:");
+	serialPrintLn("\t[value in cents] of coin");
+	serialPrintLn("\tRES restarts coin limits");
+	printLimitsAll();
+}
+
+void serialWatchdog(){
+  static uint8_t delay = 0;
+  static char command[20]="";
+  if(delay < 255) {
+    delay++;
+  }
+  else {
+    delay = 0;
+    if (rbi(UCSR2A,RXC2)){
+    serialReadString(command);
+    serialPrint(command);
+    if(!strcmp(command,"cal")){
+		serialPrintLn(": CALIBRATE MODE, SELECT COIN!");
+		calibrate = 1;
+    } else if (!strcmp(command,"run")){
+		serialPrintLn(": RUN MODE");
+		calibrate = 0;
+		printLimitsAll();
+	} else if (!strcmp(command,"res")){
+		serialPrintLn(": RESET LIMIT OF SELECTED COIN");
+		resetLimit(&coins[coin_id]);
+	} else if (!strcmp(command,"all")){
+		serialPrintLn(": SHOW CALIBRATED RANGES");
+		printLimitsAll();
+    } else if (!strcmp(command,"2")){
+		coin_id = 1;
+		serialPrintLn(": configuring 2c coin");
+	} else if (!strcmp(command,"5")){
+		coin_id = 2;
+		serialPrintLn(": configuring 5c coin");
+    } else if (!strcmp(command,"10")){
+		coin_id = 3;
+		serialPrintLn(": configuring 10c coin");
+	} else if (!strcmp(command,"20")){
+		coin_id = 4;
+		serialPrintLn(": configuring 20c coin");
+	} else if (!strcmp(command,"50")){
+		coin_id = 5;
+		serialPrintLn(": configuring 50c coin");
+	} else if (!strcmp(command,"100")){
+		coin_id = 6;
+		serialPrintLn(": configuring 100c coin");
+	} else if (!strcmp(command,"200")){
+		coin_id = 7;
+		serialPrintLn(": configuring 200c coin");
+    else serialPrintLn(": error, command not available");
+    }
+  }
+}
+
+// RUN Functions ###################################################
 
 void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 	payment_money += cents;           	// Add coin value to money of payment in progress
@@ -134,8 +168,6 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 	serialPrint("\n");
 	//openCollector();
 }
-
-
 
 void compareCoin(float ds){
 	uint8_t cents;
@@ -163,6 +195,8 @@ void compareCoin(float ds){
 	}
 }
 
+// Core Functions ###################################################
+
 void newCoin(){
 	float ds;
 	d = t3u - t2u;
@@ -179,8 +213,33 @@ void newCoin(){
 	compareCoin(ds);
 }
 
+void monederoConfig() {   // Configure I/O ports and interruptions for monedero block
+	while (rbi(PINK,SW1));
+	DDRL = 0xFF;		// Configure output port
+	cli();
+	sbi(EICRA,ISC10);   // INT1 trigger
+	cbi(EICRA,ISC11);
+	sbi(EICRA,ISC20);	// INT2 trigger
+	cbi(EICRA,ISC21);
+	sbi(EIMSK,INT1);	// Interrupt mask enable
+	sbi(EIMSK,INT2);
+	sei();
+}
 
-
+void monederoSetup() {
+    monederoConfig();
+    loadDefaultLimits();
+	initTime();
+    serialBegin(9600);
+    serialWelcome();
+    writeM1_bk(true);
+	calibrate = false;
+    coin_state = 0;
+	coin_id = 8;
+    payment_money = 0;
+	while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
+	while(calibrate == true) serialWatchdog();
+}
 
 
 void monederoLoop() {
@@ -188,18 +247,6 @@ void monederoLoop() {
 		coin_state = 0;
 		newCoin();
 	}
-}
-
-void monederoSetup() {
-    monederoConfig();
-    loadDefaultLimits();
-    
-    serialBegin(9600);
-    
-    writeM1_bk(true);
-
-    coin_state = 0;
-    payment_money = 0;
 }
 
 void monederoSetCallbackCorrecto(void(*f)()) {
