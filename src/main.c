@@ -10,16 +10,14 @@
 // Numero de pasajeros subidos a la atraccion
 int pasajerosListos = 0;
 // Estado del pendulo
-bool penduloListo = false;
+bool penduloListo = true;
+
+// TarjeteMonedero sutituto
+unsigned long debounce = 0;
 
 // Callback de nuevo pasajero
 void nuevoPasajero() {
 	pasajerosListos++;
-	if (pasajerosListos >= 4 && penduloListo) {
-		atraccionIniciar();
-		penduloListo = false;
-		pasajerosListos -= 4;
-	}
 }
 
 // Callback de finalización
@@ -33,26 +31,39 @@ void setup() {
 
 	// Serial
   serialBegin(9600);
-	
-	// Time	
+
+	// Time
   initTime();
 
-  // Setups 
+  // Setups
 	atraccionSetup();
-	tarjeteroSetup();
-	monederoSetup();
+	// tarjeteroSetup();
+	// monederoSetup();
 
 	// Callbacks
-	tarjeteroSetCallbackCorrecto(nuevoPasajero);
-	monederoSetCallbackCorrecto(nuevoPasajero);
+  // tarjeteroSetCallbackCorrecto(nuevoPasajero);
+  //	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
-	
+
 }
 
 void loop() {
 	atraccionLoop();
-	tarjeteroLoop();
-	monederoLoop();
+  //	tarjeteroLoop();
+  //	monederoLoop();
+
+	// TarjeteMonedero sutituto
+	if (!rbi(PINK,SW3) && millis() - debounce > 500 ) {
+		debounce = millis();
+		nuevoPasajero();
+	}
+
+	if (pasajerosListos >= 4 && penduloListo) {
+		atraccionIniciar();
+		penduloListo = false;
+		pasajerosListos -= 4;
+	}
+
 }
 
 int main() {
