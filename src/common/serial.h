@@ -14,7 +14,6 @@ void serialPrintInt(int i);
 void serialPrintFloat(float f);
 
 unsigned char serialReadChar();
-unsigned char * serialReadStringUntil(char endCharacter);
-unsigned char * serialReadString();
+void serialReadString(char * command);
 
 #endif
