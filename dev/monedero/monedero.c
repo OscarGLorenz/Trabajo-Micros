@@ -45,8 +45,8 @@ void loadDefaultLimits(){
 
 // Interrupt Service Routines ######################################
 
-void asm_ISR_SO2();
-void asm_ISR_SO3();
+extern void asm_ISR_SO2();
+extern void asm_ISR_SO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
 	t = micros();
