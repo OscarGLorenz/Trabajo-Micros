@@ -1,6 +1,5 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <stdlib.h>
 #include "time.h"
 #include "pinout.h"
 #include "serial.h"
@@ -27,12 +26,8 @@ static int falsoFlanco;
 
 ISR(SO1_vect) {
     flancos[flanco_actual] = micros();
-    serialPrint("F");
-    serialPrintInt(flanco_actual);
     if (flanco_actual % 2) {
       rayas[(flanco_actual) / 2] = flancos[flanco_actual] - flancos[flanco_actual - 1];
-      //serialPrintInt(rayas[(flanco_actual)/2]);
-      serialPrint(" T\n");
     }
     if (flanco_actual >= 53 - falsoFlanco) {
 		if(flanco_actual>=60){
@@ -41,18 +36,25 @@ ISR(SO1_vect) {
 		falsoFlanco = 0;
       traduce = 1;
 	}
-    if (flanco_actual == 3) {
+	if(flanco_actual>0){
+		if((flancos[flanco_actual] - flancos[flanco_actual-1])>200000){
+			flancos[0] = flancos[flanco_actual];
+			flanco_actual = -1;
+			falsoFlanco=0;
+		}
+	}
+	if (flanco_actual == 3) {
       if (rayas[0] > rayas[1]) {
         rayas[2] = rayas[1];
         rayas[1] = rayas[0];
         rayas[0] = 0;
 		flancos[4] = flancos[2];
-        flanco_actual += 1;
+		flancos[5] = flancos[3];
+        flanco_actual += 2;
 		falsoFlanco = 1;
       }
     }
     flanco_actual++;
-	
 }
 
 /*void corrige(){ //Para evitar falsos flancos o si se pasa mal la tarjeta
@@ -88,7 +90,7 @@ void tanimoto() {
     serialPrint("\t");
   }
   flanco_actual = 0;
-  if ((jaccard[whoMax(jaccard)] > 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.
+  if ((jaccard[whoMax(jaccard)] >= 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
     //digitalWrite(S01, HIGH);
@@ -186,7 +188,7 @@ int main(void) {
       traduceBin();
       traduce = 0;
     }
-    if (encendido && (millis() - luz == 1000)) {
+    if (encendido && (millis() - luz >= 1000)) {
       cbi(OUTRUT, L1);
       encendido = 0;
     }
