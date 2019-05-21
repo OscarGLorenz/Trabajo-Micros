@@ -164,6 +164,17 @@ void traduceBin() {
     }
     }*/
 }
+
+void tarjeteroLoop(){
+	if (traduce) {
+      traduceBin();
+      traduce = 0;
+    }
+    if (encendido && (millis() - luz >= 1000)) {
+      cbi(OUTRUT, L1);
+      encendido = 0;
+    }
+}
 void tarjeteroSetup() {
   //pinMode(S01, INPUT); Pin del sensor como entrada
   sbi(INT_MASK, SO1);
