@@ -37,11 +37,11 @@ void setup() {
 
   // Setups
 	atraccionSetup();
-	// tarjeteroSetup();
+	tarjeteroSetup();
 	// monederoSetup();
 
 	// Callbacks
-  // tarjeteroSetCallbackCorrecto(nuevoPasajero);
+     tarjeteroSetCallbackCorrecto(nuevoPasajero);
   //	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
 
@@ -49,7 +49,7 @@ void setup() {
 
 void loop() {
 	atraccionLoop();
-  //	tarjeteroLoop();
+    tarjeteroLoop();
   //	monederoLoop();
 
 	// TarjeteMonedero sutituto
@@ -58,10 +58,10 @@ void loop() {
 		nuevoPasajero();
 	}
 
-	if (pasajerosListos >= 4 && penduloListo) {
+	if (pasajerosListos >= 1 && penduloListo) {
 		atraccionIniciar();
 		penduloListo = false;
-		pasajerosListos -= 4;
+		pasajerosListos -= 1;
 	}
 
 }

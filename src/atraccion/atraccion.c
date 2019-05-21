@@ -4,6 +4,7 @@
 #include "serial.h"
 
 #include "atraccion.h"
+#include <stdint.h>
 
 // Callback de atraccion finalizada
 static void (*callback) ();
@@ -12,14 +13,14 @@ void atraccionSetCallbackFinalizado(void(*f)()) {
 }
 
 // Variables auxiliares para el encoder
-static volatile int pos = 0;
+static volatile int16_t pos = 0;
 static volatile uint8_t dir = 0;
-static volatile long int now = 0;
-static volatile long int past = 0;
-static volatile long int dif = 0;
-static volatile long int lastIn = 0;
-static volatile long times[5];
-static const unsigned int bouncing_time=500;
+static volatile int32_t now = 0;
+static volatile int32_t past = 0;
+static volatile int32_t dif = 0;
+static volatile int32_t lastIn = 0;
+static volatile int32_t times[5];
+static volatile int16_t bouncing_time=520;
 
 enum mode_t {ESPERA,CUELGA,ROTA,GIRA,FRENA,EMERGENCIA,CATASTROFE,LOBOTOMIA,CARGA};
 static enum mode_t mode = ESPERA;
@@ -36,66 +37,280 @@ void atraccionIniciar() {
 
 ISR(SO4_vect){
 
-/*	if (dir) pos++;
+	if (dir) pos++;
 	else pos--;
-*/
 
-// begin asm 1
-uint8_t LSB = pos;
-uint8_t MSB = pos >> 8;
+/*
+        asm volatile(
+        " push r16\n"
+        " push r24\n"
+        " push r25\n"
+        " push r26\n"
+        " push r27\n"
+        " push r30\n"
+        " push r31\n"
 
-  asm volatile(
-  " push r16\n"
-  " push r17\n"
-  " mov r16,%2\n"
-  " tst r16 \n"
-  " breq zero \n"
-  //restar 1
+        " ld r24,Z+ \n"
+        " ld r25, Z \n"
 
-  "ldi r17, 1 \n"
-  "sub %0, r17 \n"
-  "clr r17 \n"
-  "sbc %1, r17 \n"
+        " ld r16,X \n"
+        " tst r16 \n"
+        " breq zero \n"
+        //sumar 1
 
-  " jmp end\n"
-  "zero: \n"
-  //sumar 1
-  "ldi r17, 1 \n"
-  "add %0, r17 \n"
-  "clr r17 \n"
-  "adc %1, r17 \n"
-  "end: \n"
+        "adiw r24,1 \n"
 
-  //" \n"
+        " jmp end\n"
+        "zero: \n"
 
-  "pop r16 \n"
-  "pop r17 \n"
+        "sbiw r24,1 \n"
 
-  :"+r" (LSB) , "+r" (MSB) :"r" (dir):
-  );
 
-  pos = LSB | (MSB << 8);
+        "end: \n"
 
+        "sbiw z,1 \n"
+        " st Z+,r24 \n"
+        " st Z,r25 \n"
+
+        " pop r31\n"
+        " pop r30\n"
+        " pop r27\n"
+        " pop r26\n"
+        " pop r25\n"
+        " pop r24\n"
+        " pop r16\n"
+
+
+        ::"z" (&pos),"x" (&dir):
+);
 // end asm 1
-
+*/
 	now = millis();
+	volatile uint32_t caca = now;
 	dif = now - past;
+/*        asm volatile(
+        "push r26 \n"
+        "push r27 \n"
+        "push r30 \n"
+        "push r31 \n"
+        "push r16 \n"
+        "push r17 \n"
+
+        "ld r16,X \n"
+        "ld r17,Z+ \n"
+        "sub r16,r17\n"
+        "st X+,r16\n"
+
+        "ld r16,X \n"
+        "ld r17,Z+ \n"
+        "sbc r16,r17\n"
+        "st X+,r16\n"
+
+        "ld r16,X \n"
+        "ld r17,Z+ \n"
+        "sbc r16,r17\n"
+        "st X+,r16\n"
+
+        "ld r16,X \n"
+        "ld r17,Z+ \n"
+        "sbc r16,r17\n"
+        "st X+,r16\n"
+
+        "pop r17 \n"
+        "pop r16 \n"
+        "pop r31 \n"
+        "pop r30 \n"
+        "pop r27 \n"
+        "pop r26 \n"
+
+        ::"x" (&now),"z" (&past)
+); dif = now;*/
 
 
-	for (int j=0;j<4;j++){
+    past = caca;
+
+
+for (int j=0;j<4;j++)
 		times[j]=times[j+1];
-	}
 	times[4] = dif;
 
-	int aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])   ;
+
+/*
+        asm volatile(
+        "push r31         \n"
+        "push r30         \n"
+        "push r29         \n"
+        "push r28         \n"
+        "push r27         \n"
+        "push r26         \n"
+        "push r16         \n"
+        "push r17         \n"
+        "push r18         \n"
+        "movw  Y,X        \n"
+        "adiw  Y,4        \n"
+        "ldi r18,4        \n"
+        "loop2:           \n"
+        "   ldi r17,4     \n"
+        "   loop1:        \n"
+        "     ld r16, Y+  \n"
+        "     st X+, r16  \n"
+        "     dec r17     \n"
+        "     tst r17     \n"
+        "     brne loop1  \n"
+        "   dec r18       \n"
+        "   tst r18       \n"
+        "   brne loop2    \n"
+        "ldi r17,4        \n"
+        "loop3:           \n"
+        "   ld r16, Z+    \n"
+        "   st X+, r16    \n"
+        "   dec r17       \n"
+        "   tst r17       \n"
+        "   brne loop3    \n"
+        "pop r18          \n"
+        "pop r17          \n"
+        "pop r16          \n"
+        "pop r26         \n"
+        "pop r27         \n"
+        "pop r28         \n"
+        "pop r29         \n"
+        "pop r30         \n"
+        "pop r31         \n"
+        ::"x" ((uint16_t)times), "z" ((uint16_t)&dif)
+);*/
+        volatile int32_t aux;
+
+      aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])   ;
+
+/*
+        asm volatile(
+        "push r31         \n"
+        "push r30         \n"
+        "push r27         \n"
+        "push r26         \n"
+        "push r16         \n"
+        "push r17         \n"
+        "push r18         \n"
+        "push r19         \n"
+        "push r20         \n"
+
+        "clr r17      \n"
+        "clr r18      \n"
+        "clr r19      \n"
+        "clr r20      \n"
+
+        // times[0]
+        "ld r16, X+   \n"
+        "add r17, r16 \n"
+        "ld r16, X+   \n"
+        "adc r18, r16 \n"
+        "ld r16, X+   \n"
+        "adc r19, r16 \n"
+        "ld r16, X+   \n"
+        "adc r20, r16 \n"
+
+        // times[0] + times[1]
+        "ld r16, X+   \n"
+        "add r17, r16 \n"
+        "ld r16, X+   \n"
+        "adc r18, r16 \n"
+        "ld r16, X+   \n"
+        "adc r19, r16 \n"
+        "ld r16, X+   \n"
+        "adc r20, r16 \n"
+
+        // (times[0] + times[1]) << 2
+        "rol r17  \n"
+        "rol r18  \n"
+        "rol r19  \n"
+        "rol r20  \n"
+        "rol r17  \n"
+        "rol r18  \n"
+        "rol r19  \n"
+        "rol r20  \n"
+
+        // (times[0] + times[1]) << 2 + (times[0] + times[1])
+        "sbiw X, 8    \n"
+        "ld r16, X+   \n"
+        "add r17, r16 \n"
+        "ld r16, X+   \n"
+        "adc r18, r16 \n"
+        "ld r16, X+   \n"
+        "adc r19, r16 \n"
+        "ld r16, X+   \n"
+        "adc r20, r16 \n"
+        "ld r16, X+   \n"
+        "add r17, r16 \n"
+        "ld r16, X+   \n"
+        "adc r18, r16 \n"
+        "ld r16, X+   \n"
+        "adc r19, r16 \n"
+        "ld r16, X+   \n"
+        "adc r20, r16 \n"
+//
+//    // ((times[0] + times[1]) << 2 + (times[0] + times[1])) >> 1 = ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )
+        "lsr r17  \n"
+        "lsr r18  \n"
+        "lsr r19  \n"
+        "lsr r20  \n"
+
+        // -= (times[2]+times[3]+times[4])
+        "ld r16, X+      \n"
+        "sub r17, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r18, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r19, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r20, r16    \n"
+
+        "ld r16, X+      \n"
+        "sub r17, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r18, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r19, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r20, r16    \n"
+
+        "ld r16, X+      \n"
+        "sub r17, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r18, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r19, r16    \n"
+        "ld r16, X+      \n"
+        "sbc r20, r16    \n"
+
+        "st Z+,r17       \n"
+        "st Z+,r18       \n"
+        "st Z+,r19       \n"
+        "st Z+,r20       \n"
+
+        "pop r20         \n"
+        "pop r19         \n"
+        "pop r18         \n"
+        "pop r17         \n"
+        "pop r16         \n"
+        "pop r26         \n"
+        "pop r27         \n"
+        "pop r30         \n"
+        "pop r31         \n"
+        ::"x" ((uint16_t)times), "z" ((uint16_t)&aux)
+);*/
+
 
 	if (now - lastIn > bouncing_time){
 		if (aux < 0){
 
-			// if (pos > 40  || pos < -40 ){
-			// 	bouncing_time = 3 *(times[2]+times[3]+times[4]);
-			// 	if (bouncing_time < 500) bouncing_time = 500;
-			// }else
+/*
+
+			 if (pos > 40  || pos < -40 ){
+			 	bouncing_time = 3 *(times[2]+times[3]+times[4]);
+				if (bouncing_time < 500) bouncing_time = 500;
+			 } else bouncing_time = 500;
+
+*/
 
 
 			dir = !dir;
@@ -104,7 +319,7 @@ uint8_t MSB = pos >> 8;
 		}
 	}
 
-	past = now;
+
 }
 
 static volatile bool flag = 0;
@@ -159,7 +374,7 @@ void atraccionLoop() {
 		break;
 
 		case CARGA :
-		if (millis() - auxTime > 10000 ){
+		if (millis() - auxTime > 1000 ){
 			mode = CUELGA;
 			sbi(OUTRUT,M2_en);
 			cbi(OUTRUT,L3);
@@ -178,12 +393,17 @@ void atraccionLoop() {
 		} else {
 			mode = ROTA;
 			lastIn = now;
-		}
+            auxTime= millis();
+        }
 		break;
 
 		case ROTA:
 		if (millis() - lastIn > 2000) {
 			mode = GIRA;
+		}
+		// WATCHDOG
+		if (millis() - auxTime > 100000 ) {
+                mode = FRENA;
 		}
 		break;
 
@@ -197,7 +417,7 @@ void atraccionLoop() {
 		break;
 
 		case FRENA:
-		if (millis() - auxTime > 12000) {
+		if (millis() - auxTime > 20000) {
 			mode = ESPERA;
 			cbi(OUTRUT,M2_en);
 			cbi(OUTRUT,M2_di);
