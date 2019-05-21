@@ -417,7 +417,7 @@ void atraccionLoop() {
 		break;
 
 		case FRENA:
-		if (millis() - auxTime > 12000) {
+		if (millis() - auxTime > 20000) {
 			mode = ESPERA;
 			cbi(OUTRUT,M2_en);
 			cbi(OUTRUT,M2_di);
