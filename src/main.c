@@ -37,11 +37,11 @@ void setup() {
 
   // Setups
 	atraccionSetup();
-	// tarjeteroSetup();
+	tarjeteroSetup();
 	// monederoSetup();
 
 	// Callbacks
-  // tarjeteroSetCallbackCorrecto(nuevoPasajero);
+     tarjeteroSetCallbackCorrecto(nuevoPasajero);
   //	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
 
@@ -49,7 +49,7 @@ void setup() {
 
 void loop() {
 	atraccionLoop();
-  //	tarjeteroLoop();
+    tarjeteroLoop();
   //	monederoLoop();
 
 	// TarjeteMonedero sutituto

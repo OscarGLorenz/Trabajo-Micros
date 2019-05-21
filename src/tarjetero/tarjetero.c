@@ -1,5 +1,12 @@
 #include "time.h"
+#include "macros.h"
+#include "pinout.h"
+#include "serial.h"
+
 #include "tarjetero.h"
+#include <stdint.h>
+
+
 
 #define LRG 0           //DEFINIMOS RAYAS LARGAS CON CÓDIGO 0
 #define CRT 1           //DEFINIMOS RAYAS CORTAS CON CÓDIGO 1
@@ -168,8 +175,7 @@ void tarjeteroSetup() {
   //digitalWrite(L1, LOW); Poner led apagado
   cbi(OUTRUT, L1);
   //Iniciamos timer para millis() y micros()
-  initTime();
-  serialBegin(9600);
+
   traduce = 0;
   encendido = 0;
   flanco_actual = 0;
