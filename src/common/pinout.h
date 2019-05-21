@@ -27,6 +27,7 @@
 #define SO3_vect INT2_vect
 #define SO4_vect INT3_vect
 
+
 // INT CONFIG S05
 #define SO5 PCINT0 	// 1  connected to PB0
 #define PORT_S05 PORTB
@@ -37,6 +38,8 @@
 #define S05_CTRL PCICR
 #define SO5_vect PCINT0_vect
 
+//INT SW2
+#define SW2_vect PCINT2_vect
 
 
 // LEDS

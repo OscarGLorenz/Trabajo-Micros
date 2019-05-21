@@ -1,27 +1,29 @@
 #include "monedero.h"
 
-#include "../common/time.h"
-#include "../common/macros.h"
-#include "../common/pinout.h"
-#include "../common/serial.h"
+#include "time.h"
+#include "macros.h"
+#include "pinout.h"
+#include "serial.h"
 #include <avr/interrupt.h>
 #include <string.h>
 
 #define SERIAL_DEBUG 
 #define readSO2() rbi(PIND,INT1)
 #define readSO3() rbi(PIND,INT2)
-#define readSW2() rbi(PIND,INT2)
+#define readSW2() rbi(PINK,PCINT17)
 #define writeM1_bk(value) wbi(PINL,6,value)
 #define writeL2(value) wbi(PINL,1,value)
 
 #define CALIB_TIMEOUT 10000
+#define WALL_TIMEOUT 1000
 
 static void (*callback) ();
 
 // Detection variables 
-static unsigned long t, t2u, t3u, t2d, d, s;
+unsigned long t, t2u, t3u, t2d, d, s, t_open;
 static uint8_t payment_money;
-static uint8_t coin_state, calibrate, coin_id;
+uint8_t coin_state, calibrate, coin_id, wall;
+
 
 struct coin_params {
 	float ds_min;
@@ -45,8 +47,8 @@ void loadDefaultLimits(){
 
 // Interrupt Service Routines ######################################
 
-void asm_ISR_SO2();
-void asm_ISR_SO3();
+extern void asm_ISR_SO2();
+extern void asm_ISR_SO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
 	t = micros();
@@ -56,6 +58,17 @@ ISR(SO2_vect){   // ISR of first optic sensor
 ISR(SO3_vect){   // ISR of first optic sensor
 	t = micros();
 	asm_ISR_SO3();
+}
+
+ISR(SW2_vect){
+	writeM1_bk(1);
+	if(!readSW2()){
+		t_open = millis();
+		wall = 0;
+	}
+	else {
+		wall = 1;
+	}
 }
 
 // CAL Functions ###################################################
@@ -155,6 +168,7 @@ void serialWatchdog(){
 // RUN Functions ###################################################
 
 void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
+	writeM1_bk(0);
 	payment_money += cents;           	// Add coin value to money of payment in progress
 	serialPrint("Coin added to payment, total inserted money: ");
 	serialPrintInt(payment_money);
@@ -167,7 +181,7 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 		payment_money = 0;
 	}
 	serialPrint("\n");
-	//openCollector();
+	
 }
 
 void compareCoin(float ds){
@@ -224,13 +238,20 @@ void monederoConfig() {   // Configure I/O ports and interruptions for monedero 
 	cbi(EICRA,ISC21);
 	sbi(EIMSK,INT1);	// Interrupt mask enable
 	sbi(EIMSK,INT2);
+	PCMSK2 = 0x02;
+	sbi(PCICR, PCIE2);
 	sei();
 }
+
+void initWall(){
+	if(!readSW2()) writeM1_bk(0);
+	}
 
 void monederoSetup() {
     monederoConfig();
     loadDefaultLimits();
 	initTime();
+	initWall();
     serialBegin(9600);
     serialWelcome();
     writeM1_bk(true);
@@ -247,6 +268,11 @@ void monederoLoop() {
 	if (coin_state == 4){
 		coin_state = 0;
 		newCoin();
+	}
+	if(wall == 0){ 
+		if(millis() - t_open > WALL_TIMEOUT){
+			writeM1_bk(0);
+		}
 	}
 }
 
