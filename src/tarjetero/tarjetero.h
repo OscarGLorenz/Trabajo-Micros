@@ -7,4 +7,6 @@ void tarjeteroSetup();
 
 void tarjeteroSetCallbackCorrecto(void(*f)());
 
+void tarjeteroParar();
+
 #endif

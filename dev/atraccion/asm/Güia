@@ -1,0 +1,40 @@
+// asm 1
+if (dir) pos++;
+else pos--;
+
+now = millis();
+// asm 2
+dif = now - past;
+ 	
+// asm3
+for (int j=0;j<4;j++){
+  times[j]=times[j+1];
+}
+times[4] = dif;
+
+// asm4 
+int aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])  ; 
+
+// asm5 
+if (now - lastIn > bouncing_time){
+  if (aux < 0){ // tst r16    // brne end
+      dir = !dir;
+      // tst r16
+      // breq zero
+      // ldi r16,0
+      // jmp end
+      // zero:
+      // ldi r16,1
+      // end:
+      tbi(OUTRUT,M2_di); // Toggle M2_dir
+      // ldi r16, PB2
+      // in r17,PORTB      
+      // eor r16, r16
+      // out PORTB, r16
+
+      lastIn = now;
+  }
+}
+
+past = now;
+

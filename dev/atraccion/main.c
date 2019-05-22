@@ -110,7 +110,7 @@ void loop() {
         break;
 
           case CARGA :
-            if (millis() - auxTime > 10000 ){
+            if (millis() - auxTime > 1000 ){
               mode = CUELGA;
               sbi(OUTRUT,M2_en);
               cbi(OUTRUT,L3);
