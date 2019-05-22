@@ -12,6 +12,12 @@ void atraccionSetCallbackFinalizado(void(*f)()) {
 	callback = f;
 }
 
+static void (*emergencia) ();
+void atraccionSetCallbackEmergencia(void(*f)()) {
+    f = emergencia;
+}
+
+
 // Variables auxiliares para el encoder
 static volatile int16_t pos = 0;
 static volatile uint8_t dir = 0;
@@ -180,9 +186,9 @@ for (int j=0;j<4;j++)
 );*/
         volatile int32_t aux;
 
-      aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])   ;
+      //aux = (  ( (times[0]+times[1]) << 1) + ( (times[0]+times[1]) >> 1)  )  - (times[2]+times[3]+times[4])   ;
 
-/*
+
         asm volatile(
         "push r31         \n"
         "push r30         \n"
@@ -297,7 +303,7 @@ for (int j=0;j<4;j++)
         "pop r30         \n"
         "pop r31         \n"
         ::"x" ((uint16_t)times), "z" ((uint16_t)&aux)
-);*/
+);
 
 
 	if (now - lastIn > bouncing_time){
@@ -455,23 +461,28 @@ void atraccionLoop() {
 	// Boton de emergencia
 	if (!rbi(PINK,SW1)) {
 		if (mode == ROTA) {
+            emergencia();
 			mode = EMERGENCIA;
 			dir = !dir;
 			tbi(OUTRUT,M2_di); // Toggle M2_dir
 			auxTime = millis();
 		} else if (mode==CUELGA || mode==ESPERA) {
 			mode = LOBOTOMIA;
-		} else if(mode == FRENA) {
+            emergencia();
+        } else if(mode == FRENA) {
 			mode = EMERGENCIA;
-		} else if (mode == GIRA) {
+            emergencia();
+        } else if (mode == GIRA) {
 			mode = CATASTROFE;
 			dir = !dir;
 			tbi(OUTRUT,M2_di); // Toggle M2_dir
 			auxTime = millis();
-		} else if (mode == CARGA) {
+            emergencia();
+        } else if (mode == CARGA) {
 			mode = LOBOTOMIA;
 			cbi(OUTRUT,L3); // Clear L3
-		}
+            emergencia();
+        }
 	}
 
 	// L4

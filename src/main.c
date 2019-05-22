@@ -25,6 +25,11 @@ void finalizado() {
 	penduloListo = true;
 }
 
+void emergencia() {
+    tarjeteroParar();
+    monederoParar();
+}
+
 void setup() {
 	// Outputs de la maqueta
 	DDR_OUTRUT = 0xFF;
@@ -44,6 +49,7 @@ void setup() {
      tarjeteroSetCallbackCorrecto(nuevoPasajero);
   //	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
+	atraccionSetCallbackEmergencia(emergencia);
 
 }
 

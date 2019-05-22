@@ -21,3 +21,6 @@ void monederoSetCallbackCorrecto(void(*f)()) {
 	callback = f;
 }
 
+void monederoParar() {
+
+}
