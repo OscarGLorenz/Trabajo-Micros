@@ -5,7 +5,7 @@
 #include "pinout.h"
 #include "serial.h"
 #include <string.h>
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 #define readSO2() rbi(PIND,INT1)
 #define readSO3() rbi(PIND,INT2)
@@ -13,7 +13,7 @@
 
 
 #define CALIB_TIMEOUT 10000
-#define WALL_TIMEOUT 1000
+#define WALL_TIMEOUT 20000
 
 static void (*callback) ();
 
@@ -230,24 +230,31 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 
 void compareCoin(float ds){
     uint8_t cents;
-    if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
-    else if ((ds >= coins[2].ds_min) && (ds <= coins[2].ds_max)) cents = 5;     // Object detected as 5c coin
-    else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
-    else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
+
+    if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
     else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
-    else if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
+    else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
+    else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
+    else if ((ds >= coins[2].ds_min) && (ds <= coins[2].ds_max)) cents = 5;     // Object detected as 5c coin
+    else if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
     else if ((ds >= coins[7].ds_min) && (ds <= coins[7].ds_max)) cents = 200;   // Object detected as 200c coin
+
+
+
+
+
         //else if ((ds > coins[2].ds_max) || (ds < coins[7].ds_min)) cents = 1;   // Object detected as 1c coin
     else {            // Object detected out of range
         cents = 0;
         serialPrintLn("Coin not detected in pre-calibrated ranges, try again.\n");
     }
     if (cents > 0) {
-        serialPrint("New coin detected of ");
-        serialPrintInt(cents);
-        serialPrintLn(" cents.");
+
         if ((cents > 5) && (cents < 200)){    // Accepted coins condition
             coinAccepted(cents);
+            serialPrint("New coin detected of ");
+            serialPrintInt(cents);
+            serialPrintLn(" cents.");
         } else {
             serialPrintLn("Coin rejected, sorry.");
         }
