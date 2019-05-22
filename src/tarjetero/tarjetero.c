@@ -198,3 +198,6 @@ void tarjeteroSetCallbackCorrecto(void(*f)()) {
 	callback = f;
 }
 
+void tarjeteroParar() {
+
+}
