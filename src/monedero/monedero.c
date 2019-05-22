@@ -5,23 +5,28 @@
 #include "pinout.h"
 #include "serial.h"
 #include <string.h>
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 #define readSO2() rbi(PIND,INT1)
 #define readSO3() rbi(PIND,INT2)
-#define readSW2() rbi(PIND,INT2)
+#define readSW2() rbi(PINK,PCINT17)
 
 
 #define CALIB_TIMEOUT 10000
-#define WALL_TIMEOUT 20000
+#define WALL_TIMEOUT_OPEN 1
+#define WALL_TIMEOUT_WAIT 200
+#define WALL_TIMEOUT_CLOSE 1
 
 static void (*callback) ();
 
 // Detection variables
-unsigned long t, t2u, t3u, t2d, d, s, t_open, t_led;
-static uint8_t payment_money, wall, led;
-uint8_t coin_state, calibrate, coin_id, en_wall;
+static unsigned long t, t2u, t3u, t2d, d, s, t_wall, t_led;
 
+// Flags
+static uint8_t open_wall, close_wall, wall_moving;
+static uint8_t led, calibrate, coin_state;
+static uint8_t payment_money, coin_id;
+static uint8_t wall_state;     // 0: open; 1: closing; 2: waiting; 3: opening;
 
 struct coin_params {
     float ds_min;
@@ -37,7 +42,7 @@ void loadDefaultLimits(){
     coins[3].ds_min = 3.28; coins[3].ds_max = 3.76;		// 10c coin
     coins[4].ds_min = 2.25; coins[4].ds_max = 2.30;		// 20c coin
     coins[5].ds_min = 1.75; coins[5].ds_max = 1.85;		// 50c coin
-    coins[6].ds_min = 2.6; coins[6].ds_max = 3.23;		// 100c coin
+    coins[6].ds_min = 1.9; coins[6].ds_max = 2.2;		// 100c coin
     coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;		// 200c coin
 }
 
@@ -71,6 +76,8 @@ ISR(SO2_vect){   // ISR of first optic sensor
         }
 }
 
+void newCoin();
+
 ISR(SO3_vect){   // ISR of first optic sensor
         if (readSO3()){
             if (coin_state == 1){
@@ -88,6 +95,7 @@ ISR(SO3_vect){   // ISR of first optic sensor
         } else {
             if (coin_state == 3){
                 coin_state = 4;
+				newCoin();
 #ifdef SERIAL_DEBUG
                 serialPrintLn("Sale SO3");
 #endif
@@ -101,16 +109,27 @@ ISR(SO3_vect){   // ISR of first optic sensor
 }
 
 ISR(SW2_vect){
-	serialPrintLn("SW2 Change");
-	if(en_wall){
-        sbi(OUTRUT,M1_bk);
-        if(!readSW2()){
-            t_open = millis();
-            wall = 0;
+	if((open_wall || close_wall) && !wall_moving){
+		t_wall = millis();
+		wall_moving = 1;
+		serialPrintLn("SW2 Change");
+	}
+/*	if(open_wall && !readSW2()){
+		open_wall = 0;
+		close_wall = 1;
+	} else if(close_wall && readSW2()){
+		close_wall = 0;
+		|| close_wall){
+       // sbi(OUTRUT,M1_bk);
+      //  if(!readSW2()){
+            
+            open_wall = 0;
+			close_wall = 1;
 			serialPrintLn("Abierta");
         }   
 	}
-	en_wall = 0;
+	open_wall = 0;
+	*/
 }
 
 // CAL Functions ###################################################
@@ -210,11 +229,12 @@ void serialWatchdog(){
 // RUN Functions ###################################################
 
 void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
-	en_wall = 1;
-    cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
-	t_open = millis();
+	cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
+	wall_state = 1;
     payment_money += cents;           	// Add coin value to money of payment in progress
-    serialPrint("Coin added to payment, total inserted money: ");
+    serialPrint("Coin of ");
+	serialPrintInt(cents);
+	serialPrintLn(" added to payment, total inserted money: ");
     serialPrintInt(payment_money);
     serialPrintLn(" cents.\n");
     if (payment_money >= 120){
@@ -245,15 +265,10 @@ void compareCoin(float ds){
         cents = 0;
         serialPrintLn("Coin not detected in pre-calibrated ranges, try again.\n");
     }
-    if (cents > 0) {
-        serialPrint("New coin detected of ");
-        serialPrintInt(cents);
-        serialPrintLn(" cents.");
-        if ((cents > 5) && (cents < 200)){    // Accepted coins condition
-            coinAccepted(cents);
-        } else {
-            serialPrintLn("Coin rejected, sorry.");
-        }
+    if ((cents > 5) && (cents < 200)){    // Accepted coins condition
+        coinAccepted(cents);
+    } else {
+        serialPrintLn("Coin rejected, sorry.");
     }
 }
 
@@ -269,9 +284,10 @@ void newCoin(){
     serialPrint("td\ts");
     serialPrintInt(d); 	serialPrint("\t");
     serialPrintInt(s);
-#endif
-    serialPrint("\nwd/s = ");
+    serialPrint("\nwd/s =");
     serialPrintFloat(ds);
+	serialPrint("\n");
+	#endif
     compareCoin(ds);
 }
 
@@ -289,8 +305,12 @@ void monederoConfig() {   // Configure I/O ports and interruptions for monedero 
 }
 
 void initWall(){
-	en_wall = 1;
-    if(!readSW2()) cbi(OUTRUT,M1_bk);
+	cbi(OUTRUT,M1_bk);
+	while(readSW2()){
+		serialPrintLn("Still closed");
+	}
+	sbi(OUTRUT,M1_bk);
+	wall_state = 0;
 }
 
 void monederoSetup() {
@@ -299,34 +319,58 @@ void monederoSetup() {
       loadDefaultLimits();
        initWall();
        serialWelcome();
-
-       sbi(OUTRUT,M1_bk);
        cbi(OUTRUT,L2);
        calibrate = false;
        coin_state = 0;
        coin_id = 8;
        led = 0;
        payment_money = 0;
-	   en_wall = 0;
-	   wall = 1;
+	   open_wall = 0;
+	   //wall = 1;
        //while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
        //while(calibrate == true) serialWatchdog();
+}
+
+void checkWall(){
+	if((wall_state == 1) && wall_moving){
+		if(millis() - t_wall > WALL_TIMEOUT_CLOSE){
+			sbi(OUTRUT,M1_bk);
+			wall_moving = 0;
+			t_wall = millis();
+			wall_state = 2;
+			serialPrintLn("Fully closed");
+		}
+	} else if((wall_state == 2)){
+		if(millis() - t_wall > WALL_TIMEOUT_WAIT){
+			cbi(OUTRUT,M1_bk);
+			wall_state = 3;
+			serialPrintLn("Start opening");
+		}
+	} else if((wall_state == 3) && wall_moving){
+		if(millis() - t_wall > WALL_TIMEOUT_OPEN){
+			sbi(OUTRUT,M1_bk);
+			wall_moving = 0;
+			wall_state = 0;
+			serialPrintLn("Fully oopen");
+		}
+	}
 }
 
 
 void monederoLoop() {
     if (coin_state == 4){
         coin_state = 0;
-        newCoin();
+        //newCoin();
     }
-    if(!wall){
-        if(millis() - t_open > WALL_TIMEOUT){
+    /*if(close_wall){
+        if(millis() - t_wall > WALL_TIMEOUT){
             cbi(OUTRUT,M1_bk);
-			en_wall = 1;
+			close_wall = 1;
 			serialPrintLn("Cierro!");
-            wall = 1;
+            open_wall = 1;
         }
-    }
+    }*/
+	checkWall();
     if(led){
         if(millis() - t_led > 1000){
             cbi(OUTRUT,L2);
