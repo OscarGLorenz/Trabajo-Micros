@@ -8,7 +8,6 @@
 void serialBegin(unsigned long baud);
 
 void serialWrite(char data);
-
 void serialPrint(const char * str);
 void serialPrintLn(const char * str);
 void serialPrintInt(int i);
@@ -16,5 +15,8 @@ void serialPrintUInt(unsigned int i);
 void serialPrintLong(long i);
 void serialPrintULong(unsigned long i);
 void serialPrintFloat(float f);
+
+unsigned char serialReadChar();
+void serialReadString(char * command);
 
 #endif

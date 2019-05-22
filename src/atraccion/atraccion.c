@@ -497,7 +497,7 @@ void atraccionLoop() {
 
 	// Data dump
 	static long int pocoPoco = 0;
-	if (millis() - pocoPoco > 5) {
+	if (millis() - pocoPoco > 5 && 0) {
 		pocoPoco = millis();
 		serialPrintLong(dif);
 		serialWrite(' ');
