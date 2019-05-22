@@ -21,11 +21,11 @@
 static void (*callback) ();
 
 // Detection variables
-static unsigned long t, t2u, t3u, t2d, d, s, t_close, t_wall, t_led;
+unsigned long t, t2u, t3u, t2d, d, s, t_close, t_wall, t_led;
 
 // Flags
 static uint8_t open_wall, close_wall, wall_moving;
-static uint8_t led, calibrate, coin_state;
+uint8_t led, calibrate, coin_state;
 static uint8_t payment_money, coin_id;
 static uint8_t wall, wall_state;     // 0: open; 1: closing; 2: waiting; 3: opening;
 
@@ -47,7 +47,9 @@ void loadDefaultLimits(){
     coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;		// 200c coin
 }
 
-ISR(SO2_vect){   // ISR of first optic sensor
+void newCoin();
+
+/*ISR(SO2_vect){   // ISR of first optic sensor
         if (readSO2()){
             if (coin_state == 0){
                 t2u = micros();
@@ -77,7 +79,7 @@ ISR(SO2_vect){   // ISR of first optic sensor
         }
 }
 
-void newCoin();
+
 
 ISR(SO3_vect){   // ISR of first optic sensor
         if (readSO3()){
@@ -108,7 +110,7 @@ ISR(SO3_vect){   // ISR of first optic sensor
             }
         }
 }
-/*
+
 ISR(SW2_vect){
 	if((open_wall || close_wall) && !wall_moving){
 		t_wall = millis();
@@ -117,7 +119,19 @@ ISR(SW2_vect){
 	}
 }
 */
+extern void asm_ISR_SO2();
+extern void asm_ISR_SO3();
 
+ISR(SO2_vect){   // ISR of first optic sensor
+	t = micros();
+	asm_ISR_SO2();
+}
+
+ISR(SO3_vect){   // ISR of first optic sensor
+	t = micros();
+	asm_ISR_SO3();
+	if(coin_state == 4) newCoin();
+}
 ISR(SW2_vect){
         sbi(OUTRUT,M1_bk);
         if(readSW2()){
@@ -174,54 +188,30 @@ void serialWelcome(){
 }
 
 void serialWatchdog(){
-    static uint8_t delay = 0;
-    static char command[20]="";
-    if(delay < 255) {
-        delay++;
+  char command[20]="";
+  static uint8_t delay = 0;
+  if(delay < 255) {
+    delay++;
+  }
+  else {
+    delay = 0;
+    if (rbi(UCSR0A,RXC0)){
+    serialReadString(command);
+    serialPrint(command);
+    if(!strcmp(command,"cal"))serialPrintLn(": CALIBRATE MODE");
+    else if (!strcmp(command,"run"))serialPrintLn(": RUN MODE");
+    else if (!strcmp(command,"2"))serialPrintLn(": configuring 2c coin");
+    else if (!strcmp(command,"5"))serialPrintLn(": configuring 5c coin");
+    else if (!strcmp(command,"10"))serialPrintLn(": configuring 10c coin");
+    else if (!strcmp(command,"20"))serialPrintLn(": configuring 20c coin");
+    else if (!strcmp(command,"50"))serialPrintLn(": configuring 50c coin");
+    else if (!strcmp(command,"100"))serialPrintLn(": configuring 100c coin");
+    else if (!strcmp(command,"100"))serialPrintLn(": configuring 200c coin");
+    else serialPrintLn(": error, command not available");
     }
-    else {
-        delay = 0;
-        if (rbi(UCSR2A,RXC2)){
-            serialReadString(command);
-            serialPrint(command);
-            if(!strcmp(command,"cal")){
-                serialPrintLn(": CALIBRATE MODE, SELECT COIN!");
-                calibrate = 1;
-            } else if (!strcmp(command,"run")){
-                serialPrintLn(": RUN MODE");
-                calibrate = 0;
-                printLimitsAll();
-            } else if (!strcmp(command,"res")){
-                serialPrintLn(": RESET LIMIT OF SELECTED COIN");
-                resetLimit(&coins[coin_id]);
-            } else if (!strcmp(command,"all")){
-                serialPrintLn(": SHOW CALIBRATED RANGES");
-                printLimitsAll();
-            } else if (!strcmp(command,"2")){
-                coin_id = 1;
-                serialPrintLn(": configuring 2c coin");
-            } else if (!strcmp(command,"5")){
-                coin_id = 2;
-                serialPrintLn(": configuring 5c coin");
-            } else if (!strcmp(command,"10")){
-                coin_id = 3;
-                serialPrintLn(": configuring 10c coin");
-            } else if (!strcmp(command,"20")){
-                coin_id = 4;
-                serialPrintLn(": configuring 20c coin");
-            } else if (!strcmp(command,"50")){
-                coin_id = 5;
-                serialPrintLn(": configuring 50c coin");
-            } else if (!strcmp(command,"100")){
-                coin_id = 6;
-                serialPrintLn(": configuring 100c coin");
-            } else if (!strcmp(command,"200")){
-                coin_id = 7;
-                serialPrintLn(": configuring 200c coin");
-            } else serialPrintLn(": error, command not available");
-        }
-    }
+  }
 }
+
 
 // RUN Functions ###################################################
 
@@ -327,34 +317,10 @@ void monederoSetup() {
        payment_money = 0;
 	   open_wall = 0;
 	   wall = 0;
-       //while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
-       //while(calibrate == true) serialWatchdog();
+       while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
+       while(calibrate == true) serialWatchdog();
 }
 
-void checkWall(){
-	if((wall_state == 1) && wall_moving){
-		if(millis() - t_wall > WALL_TIMEOUT_CLOSE){
-			sbi(OUTRUT,M1_bk);
-			wall_moving = 0;
-			t_wall = millis();
-			wall_state = 2;
-			serialPrintLn("Fully closed");
-		}
-	} else if((wall_state == 2)){
-		if(millis() - t_wall > WALL_TIMEOUT_WAIT){
-			cbi(OUTRUT,M1_bk);
-			wall_state = 3;
-			serialPrintLn("Start opening");
-		}
-	} else if((wall_state == 3) && wall_moving){
-		if(millis() - t_wall > WALL_TIMEOUT_OPEN){
-			sbi(OUTRUT,M1_bk);
-			wall_moving = 0;
-			wall_state = 0;
-			serialPrintLn("Fully oopen");
-		}
-	}
-}
 
 
 void monederoLoop() {
@@ -375,7 +341,6 @@ void monederoLoop() {
             cbi(OUTRUT,M1_bk);
         }
     }
-	//checkWall();
     if(led){
         if(millis() - t_led > 1000){
             cbi(OUTRUT,L2);
