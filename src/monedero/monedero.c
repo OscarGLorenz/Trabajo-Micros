@@ -47,8 +47,9 @@ void loadDefaultLimits(){
 
 // Interrupt Service Routines ######################################
 
-extern void asm_ISR_SO2();
-extern void asm_ISR_SO3();
+uint16_t pinrut = PINK;
+extern "C" void asm_ISR_SO2();
+extern "C" void asm_ISR_SO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
 	t = micros();

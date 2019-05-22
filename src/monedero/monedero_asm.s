@@ -1,19 +1,20 @@
 #include <avr/io.h>
+#include "pinout.h"
 
 .extern coin_state
 .extern t
 .extern t2u
 .extern t2d
 .extern t3u
-
+.extern pinrut
 
 .global asm_ISR_SO2
 
 	asm_ISR_SO2:
 		PUSH R17
-		IN R17, PIND
+		LDS R17, pinrut
 		ANDI R17, 0x02
-		BRNE SO2_down		// SI FLANCO BAJADA
+		BRNE SO2_down		; SI FLANCO BAJADA
 	SO2_up:
 		LDS R17, coin_state
 		CPI R17, 0x00
@@ -55,9 +56,9 @@
 		
 	asm_ISR_SO3:
 		PUSH R17
-		IN R17, PIND
-		ANDI R17, 0x03
-		BRNE SO3_down		// SI FLANCO BAJADA
+		LDS R17, pinrut
+		ANDI R17, 0x02
+		BRNE SO3_down		; SI FLANCO BAJADA
 	SO3_up:
 		LDS R17, coin_state
 		CPI R17, 0x01

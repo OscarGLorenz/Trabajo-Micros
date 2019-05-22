@@ -12,15 +12,18 @@ HEX := bin/main.hex
 
 SRCEXT := c
 SOURCES := $(shell find src -type f -name *.c)
+ASM := $(shell find src -type f -name *.s)
+ASM_OBJECTS := $(patsubst src/%,build/%,$(ASM:.s=.o))
 OBJECTS := $(patsubst src/%,build/%,$(SOURCES:.c=.o))
 INC := -I src/common
 
-
-$(TARGET): $(OBJECTS)
-
+$(TARGET): $(OBJECTS) $(ASM_OBJECTS)
 	$(CC) -mmcu=$(MCU) $^ -o $(TARGET) $(LIB)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
+	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.s
 	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
 
 upload:
@@ -36,5 +39,6 @@ init:
 
 clean:
 	rm -r build/
+	make init
 
 .PHONY: clean
