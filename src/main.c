@@ -27,7 +27,7 @@ void finalizado() {
 
 void emergencia() {
     tarjeteroParar();
-    monederoParar();
+   // monederoParar();
 }
 
 void setup() {
@@ -35,28 +35,34 @@ void setup() {
 	DDR_OUTRUT = 0xFF;
 
 	// Serial
-  serialBegin(9600);
+   serialBegin(9600);
 
 	// Time
-  initTime();
+   initTime();
 
-  // Setups
+   // Setups
 	atraccionSetup();
-	tarjeteroSetup();
-	// monederoSetup();
+    serialPrintLn("Atracción iniciada");
+
+    tarjeteroSetup();
+    serialPrintLn("Tarjetero iniciado");
+
+    monederoSetup();
+    serialPrintLn("Monedero iniciado");
 
 	// Callbacks
-     tarjeteroSetCallbackCorrecto(nuevoPasajero);
-  //	monederoSetCallbackCorrecto(nuevoPasajero);
+    tarjeteroSetCallbackCorrecto(nuevoPasajero);
+  	monederoSetCallbackCorrecto(nuevoPasajero);
 	atraccionSetCallbackFinalizado(finalizado);
 	atraccionSetCallbackEmergencia(emergencia);
+    serialPrintLn("Callbacks iniciados");
 
 }
 
 void loop() {
 	atraccionLoop();
     tarjeteroLoop();
-  //	monederoLoop();
+    monederoLoop();
 
 	// TarjeteMonedero sutituto
 	if (!rbi(PINK,SW3) && millis() - debounce > 500 ) {

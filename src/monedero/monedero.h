@@ -4,7 +4,4 @@
 void monederoLoop();
 void monederoSetup();
 void monederoSetCallbackCorrecto(void(*f)());
-
-void monederoParar();
-
 #endif

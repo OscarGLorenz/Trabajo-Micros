@@ -12,8 +12,8 @@ HEX := bin/main.hex
 
 SRCEXT := c
 SOURCES := $(shell find src -type f -name *.c)
-ASM := $(shell find src -type f -name *.s)
-ASM_OBJECTS := $(patsubst src/%,build/%,$(ASM:.s=.o))
+#ASM := $(shell find src -type f -name *.s)
+#ASM_OBJECTS := $(patsubst src/%,build/%,$(ASM:.s=.o))
 OBJECTS := $(patsubst src/%,build/%,$(SOURCES:.c=.o))
 INC := -I src/common
 
@@ -23,8 +23,8 @@ $(TARGET): $(OBJECTS) $(ASM_OBJECTS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.s
-	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
+#$(BUILDDIR)/%.o: $(SRCDIR)/%.s
+#	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
 
 upload:
 	avr-objcopy -j .text -j .data -O ihex $(TARGET) $(HEX)
