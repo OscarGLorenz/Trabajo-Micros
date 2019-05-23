@@ -224,7 +224,7 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
     serialPrintInt(payment_money);
     serialPrintLn(" cents.\n");
     if (payment_money >= 120){
-        //callback();
+        callback();
         sbi(OUTRUT,L2);
         t_led = millis();
         led = 1;
