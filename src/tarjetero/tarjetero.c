@@ -27,8 +27,8 @@ static int luz;
 static int encendido;
 static int n;
 static int falsoFlanco;
-static int num;
-static int den;
+static uint8_t num;
+static uint8_t den;
 
 ISR(SO1_vect) {
     flancos[flanco_actual] = micros();
@@ -63,9 +63,9 @@ ISR(SO1_vect) {
     flanco_actual++;
 }
 
-int whoMax(float *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
-  float max = c[0];
-  int who = 0;
+uint8_t whoMax(uint8_t *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
+  uint8_t max = c[0];
+  uint8_t who = 0;
   for (int i = 1; i < n;  i++) {
     if (c[i] > max) {
       who = i;
@@ -74,18 +74,17 @@ int whoMax(float *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL Í
   }
   return who;
 }
-float sumData(uint16_t c) {   //NÚMERO DE '1' EN EL DATO C. USADO PARA CALCULAR COINCIDENCIAS
-  float howmuch = 0;
+uint8_t sumData(uint16_t c) {   //NÚMERO DE '1' EN EL DATO C. USADO PARA CALCULAR COINCIDENCIAS
+  uint8_t howmuch = 0;
   for (int i = 0; i < 16; i++) {
     howmuch += rbi(c, i);
   }
   return howmuch;
 }
 void tanimoto() {
-  float jaccard[n];
+  uint8_t jaccard[n];
   serialPrint("Pesos jaccard \t");
   for (int j = 0; j < n; j++) {
-	  /*
 	  num = sumData(a[j] & hexadecimal);
 	  den = (sumData(a[j] | hexadecimal));
 	  asm volatile (
@@ -96,12 +95,12 @@ void tanimoto() {
     "mov r19, %2  \n"
     "tst r19      \n"		//Comprobar si denominador igual a 0
     "breq zero    \n"
+	"tst r17      \n"
+	"breq zero	  \n"
     "clr %0       \n"		//Poner cociente a 0
-    "mov r16,r19  \n"		//Inicializar auxiliar con denominador
 	"lsl r17	  \n"		//Incrementar valor de numerador para hacer division entera (x2)
 	"lsl r17	  \n"		//(x4)
-	"lsl r17	  \n"		//(x8)
-	"lsl r17	  \n"		//(x16)
+    "mov r16,r19  \n"		//Inicializar auxiliar con denominador
     "start:       \n"
     " cp r17, r16 \n"		
     " brge loop   \n"		//Salir cuando numerador menor que auxiliar
@@ -113,19 +112,18 @@ void tanimoto() {
     "zero:        \n"		//Caso en que el denominador es igual a 0
     " clr %0      \n"		//Cociente es 0
     "end:         \n"
-    "pop r16      \n"
-    "pop r19      \n"
-    "pop r17      \n"
+    " pop r16      \n"
+    " pop r19      \n"
+    " pop r17      \n"
     :"=r"(jaccard[j])		//Salida
 	:"r"(num),"r"(den)		//Entradas (numerador, denominador)
   );
-	  */
-    jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
+    //jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
     serialPrintFloat(jaccard[j]);
     serialPrint("\t");
   }
   flanco_actual = 0;
-  if ((jaccard[whoMax(jaccard)] >= 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=12
+  if ((jaccard[whoMax(jaccard)] >= 12)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
     //digitalWrite(S01, HIGH);
