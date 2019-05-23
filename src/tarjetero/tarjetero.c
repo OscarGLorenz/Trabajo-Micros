@@ -29,6 +29,8 @@ static int n;
 static int falsoFlanco;
 static uint8_t num;
 static uint8_t den;
+static funciona = 1;
+
 
 ISR(SO1_vect) {
     flancos[flanco_actual] = micros();
@@ -166,43 +168,19 @@ void traduceBin() {
     }
 	serialPrint("\n");
 	traduceHex();
-  /*for (int i = 2; i<26; i++){                     //Desplazado 1 por falsos flancos al inicio
-    if(!largo){
-      if(rayas[i]<limite*1.1){
-        binario[i] = CRT;
-        serialPrint("1");
-      }
-      else{
-        binario[i] = LRG;
-        largo = 1;
-        serialPrint("0");
-        limite = rayas[i];
-      }
-    }
-    else{
-      if(rayas[i]<limite*0.9){
-        binario[i] = CRT;
-        serialPrint("1");
-        largo = 0;
-        limite = rayas[i];
-      }
-      else{
-        binario[i] = LRG;
-        serialPrint("0");
-      }
-    }
-    }*/
 }
 
 void tarjeteroLoop(){
-	if (traduce) {
-      traduceBin();
-      traduce = 0;
-    }
-    if (encendido && (millis() - luz >= 1000)) {
-      cbi(OUTRUT, L1);
-      encendido = 0;
-    }
+	if(funciona){
+		if (traduce) {
+		  traduceBin();
+		  traduce = 0;
+		}
+		if (encendido && (millis() - luz >= 1000)) {
+		  cbi(OUTRUT, L1);
+		  encendido = 0;
+		}
+	}
 }
 void tarjeteroSetup() {
   //pinMode(S01, INPUT); Pin del sensor como entrada
@@ -214,8 +192,7 @@ void tarjeteroSetup() {
   cbi(CTRL_INT, SO1_C1);
   //digitalWrite(L1, LOW); Poner led apagado
   cbi(OUTRUT, L1);
-  //Iniciamos timer para millis() y micros()
-
+  //Iniciamos variables
   traduce = 0;
   encendido = 0;
   flanco_actual = 0;
@@ -228,5 +205,7 @@ void tarjeteroSetCallbackCorrecto(void(*f)()) {
 }
 
 void tarjeteroParar() {
-
+	funciona = 0;
+	cbi(OUTRUT, L1);
+	encendido = 0;
 }

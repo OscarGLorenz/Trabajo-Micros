@@ -58,12 +58,6 @@ ISR(SO1_vect) {
     flanco_actual++;
 }
 
-/*void corrige(){ //Para evitar falsos flancos o si se pasa mal la tarjeta
-  if(((flancos[flanco_actual]-flancos[flanco_actual-1])>10000000) && (flanco_actual>1)){
-    flanco_actual = 0;
-  }
-  }*/
-
 uint8_t whoMax(uint8_t *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
   uint8_t max = c[0];
   uint8_t who = 0;
@@ -166,32 +160,6 @@ void traduceBin() {
     }
 	serialPrint("\n");
 	traduceHex();
-  /*for (int i = 2; i<26; i++){                     //Desplazado 1 por falsos flancos al inicio
-    if(!largo){
-      if(rayas[i]<limite*1.1){
-        binario[i] = CRT;
-        serialPrint("1");
-      }
-      else{
-        binario[i] = LRG;
-        largo = 1;
-        serialPrint("0");
-        limite = rayas[i];
-      }
-    }
-    else{
-      if(rayas[i]<limite*0.9){
-        binario[i] = CRT;
-        serialPrint("1");
-        largo = 0;
-        limite = rayas[i];
-      }
-      else{
-        binario[i] = LRG;
-        serialPrint("0");
-      }
-    }
-    }*/
 }
 
 void setup() {
