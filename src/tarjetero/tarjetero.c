@@ -29,7 +29,7 @@ static int n;
 static int falsoFlanco;
 static uint8_t num;
 static uint8_t den;
-static funciona = 1;
+static uint8_t funciona = 1;
 
 
 ISR(SO1_vect) {

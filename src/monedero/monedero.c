@@ -15,8 +15,8 @@
 #define readSW2() rbi(PINK,PCINT17)
 
 
-#define CALIB_TIMEOUT 10000
-#define WALL_TIMEOUT 1000
+#define CALIB_TIMEOUT 20000
+#define WALL_TIMEOUT 2
 
 static void (*callback) ();
 
@@ -52,20 +52,20 @@ void newCoin();
 
 // ###################  INTERRUPT SERVICE ROUTINES IN ASM ########################
 
-extern void asm_ISR_SO2();
-extern void asm_ISR_SO3();
+extern "C" void asmISRSO2();
+extern "C" void asmISRSO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
 	pin_sensor = PIND;
 	t_coin = micros();
-	asm_ISR_SO2();
+	asmISRSO2();
 	if(coin_state == 3) newCoin();
 }
 
 ISR(SO3_vect){   // ISR of first optic sensor
 	pin_sensor = PIND;
 	t_coin = micros();
-	asm_ISR_SO3();
+	asmISRSO3();
 	
 }
 
@@ -357,29 +357,3 @@ void monederoLoop() {
 void monederoSetCallbackCorrecto(void(*f)()) {
     callback = f;
 }
-
-//#define SERIAL_DEBUG
-#define CALIB_TIMEOUT 20000
-#define WALL_TIMEOUT 2
-	if ((ds >= coins[3].ds_max) || (ds <= coins[5].ds_min)) {
-		cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
-	}
-	if ((ds >= coins[2].ds_min) && (ds <= coins[2].ds_max)) {cents = 5; cbi(OUTRUT,M1_bk);}     // Object detected as 5c coin
-	else if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
-	else if ((ds >= coins[7].ds_min) && (ds <= coins[7].ds_max)) cents = 200;   // Object detected as 200c coin
-	else if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
-	else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
-	else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
-	else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
-    else cents = 1;
-	
-    if ((cents < 10) || (cents > 100)){    // Accepted coins condition
-        serialPrintLn("\nCoin rejected, sorry.");
-		cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
-    } else {
-		coinAccepted(cents);
-	#ifdef SERIAL_DEBUG
-		serialPrint("\nwd/s =");
-		serialPrintFloat(ds);
-		serialPrint("\n");
-	#endif

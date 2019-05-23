@@ -11,7 +11,7 @@ HEX := bin/main.hex
 
 
 SRCEXT := c
-#ASM_OBJECTS := build/monedero/monedero_asm.o
+ASM_OBJECTS := build/monedero/monedero_asm.o
 OBJECTS := build/main.o build/common/time.o build/common/serial.o build/atraccion/atraccion.o build/monedero/monedero.o build/monedero/monedero.o build/tarjetero/tarjetero.o
 INC := -I src/common
 
@@ -21,19 +21,19 @@ $(TARGET): $(OBJECTS) $(ASM_OBJECTS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.s
-	$(CC) -mmcu=$(MCU) $(INC) $(CFLAGS) -c -o $@ $<
+$(BUILDDIR)/%.o: $(SRCDIR)/%.S
+	$(CC) -mmcu=$(MCU) $(CFLAGS) -c -o $@ $<
 
 upload:
 	avr-objcopy -j .text -j .data -O ihex $(TARGET) $(HEX)
 	avrdude -c $(PROGRAMMER) -p $(AVRDUDEMCU) -U flash:w:"$(HEX)":a
 
 init:
-	mkdir build/common
-	mkdir build/atraccion
-	mkdir build/tarjetero
-	mkdir build/monedero
-	mkdir bin
+	mkdir -p build/common
+	mkdir -p build/atraccion
+	mkdir -p build/tarjetero
+	mkdir -p build/monedero
+	mkdir -p bin
 
 clean:
 	rm -r build/
