@@ -1,10 +1,12 @@
+#include <string.h>
+//#include <stdbool.h>
+
 #include "monedero.h"
 
 #include "time.h"
 #include "macros.h"
 #include "pinout.h"
 #include "serial.h"
-#include <string.h>
 //#define SERIAL_DEBUG
 
 #define readSO2() rbi(PIND,INT1)
@@ -13,21 +15,19 @@
 
 
 #define CALIB_TIMEOUT 10000
-#define WALL_TIMEOUT_OPEN 1
-#define WALL_TIMEOUT 200
-#define WALL_TIMEOUT_WAIT 200
-#define WALL_TIMEOUT_CLOSE 1
+#define WALL_TIMEOUT 2
 
 static void (*callback) ();
 
 // Detection variables
-unsigned long t, t2u, t3u, t2d, d, s, t_close, t_wall, t_led;
+unsigned long t_coin, t2u, t3u, t2d ;
+static unsigned long d, s, t_close, t_led;
 
 // Flags
-static uint8_t open_wall, close_wall, wall_moving;
-uint8_t led, calibrate, coin_state;
+static uint8_t led, calibrate, lobotomy;
+uint8_t coin_state, pin_sensor;
 static uint8_t payment_money, coin_id;
-static uint8_t wall, wall_state;     // 0: open; 1: closing; 2: waiting; 3: opening;
+static uint8_t wall;
 
 struct coin_params {
     float ds_min;
@@ -48,8 +48,8 @@ void loadDefaultLimits(){
 }
 
 void newCoin();
-
-/*ISR(SO2_vect){   // ISR of first optic sensor
+/*
+ISR(SO2_vect){   // ISR of first optic sensor
         if (readSO2()){
             if (coin_state == 0){
                 t2u = micros();
@@ -110,38 +110,39 @@ ISR(SO3_vect){   // ISR of first optic sensor
             }
         }
 }
-
-ISR(SW2_vect){
-	if((open_wall || close_wall) && !wall_moving){
-		t_wall = millis();
-		wall_moving = 1;
-		serialPrintLn("SW2 Change");
-	}
-}
 */
+
 extern void asm_ISR_SO2();
 extern void asm_ISR_SO3();
 
 ISR(SO2_vect){   // ISR of first optic sensor
-	t = micros();
+	pin_sensor = PIND;
+	t_coin = micros();
 	asm_ISR_SO2();
+	if(coin_state == 3) newCoin();
 }
 
 ISR(SO3_vect){   // ISR of first optic sensor
-	t = micros();
+	pin_sensor = PIND;
+	t_coin = micros();
 	asm_ISR_SO3();
-	if(coin_state == 4) newCoin();
+	
 }
+
 ISR(SW2_vect){
-        sbi(OUTRUT,M1_bk);
-        if(readSW2()){
-            t_close = millis();
-            wall = 1;
-        }
-        else {
-            wall = 0;
-        }
+	sbi(OUTRUT,M1_bk);
+	if(readSW2()&&(!lobotomy)){
+		t_close = millis();
+		wall = 1;
+	} else if (lobotomy){
+		cbi(EIMSK,INT1);	// Interrupt mask enable
+		cbi(EIMSK,INT2);
+		cbi(PCICR, PCIE2);
+	} else {
+		wall = 0;
+	}
 }
+
 
 // CAL Functions ###################################################
 
@@ -216,9 +217,8 @@ void serialWatchdog(){
 // RUN Functions ###################################################
 
 void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
-	wall_state = 1;
     payment_money += cents;           	// Add coin value to money of payment in progress
-    serialPrint("Coin of ");
+    serialPrint("\nCoin of ");
 	serialPrintInt(cents);
 	serialPrintLn(" added to payment, total inserted money: ");
     serialPrintInt(payment_money);
@@ -252,19 +252,25 @@ void compareCoin(float ds){
     else cents = 1;
 	
     if ((cents < 10) || (cents > 100)){    // Accepted coins condition
-		serialPrint("Coin of ");
-		serialPrintInt(cents);
-        serialPrintLn(" rejected, sorry.");
+        serialPrintLn("\nCoin rejected, sorry.");
+		cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
     } else {
 		coinAccepted(cents);
     }
-	serialPrint("\nwd/s =");
-    serialPrintFloat(ds);
-	serialPrint("\n");
-	
+	#ifdef SERIAL_DEBUG
+		serialPrint("\nwd/s =");
+		serialPrintFloat(ds);
+		serialPrint("\n");
+	#endif
 }
 
 // Core Functions ###################################################
+
+void monederoParar(){
+	serialPrintLn("\nMonedero out of service :(");
+	cbi(OUTRUT,M1_bk);
+	lobotomy = 1;
+}
 
 void newCoin(){
     float ds;
@@ -273,7 +279,7 @@ void newCoin(){
     ds = (float)d / s;
 #ifdef SERIAL_DEBUG
     serialPrint("New coin introduced:\t");
-    serialPrint("td\ts");
+    serialPrint("d\ts\n\t\t\t");
     serialPrintInt(d); 	serialPrint("\t");
     serialPrintInt(s);
 	#endif
@@ -290,23 +296,26 @@ void monederoConfig() {   // Configure I/O ports and interruptions for monedero 
     sbi(EIMSK,INT2);
     sbi(PCMSK2,PCINT17);
     sbi(PCICR, PCIE2);
+	cbi(DDRD, 1);
+	cbi(DDRD, 2);
+	sbi(DDRL, 6);
     sei();
 }
 
 void initWall(){
 	
 	if(readSW2()){
-	
-		serialPrintLn("Still closed");
+		#ifdef SERIAL_DEBUG
+			serialPrintLn("Still closed");
+		#endif
 		cbi(OUTRUT,M1_bk);
 	}
-	//wall_state = 0;
 }
 
 void monederoSetup() {
 
-     monederoConfig();
-      loadDefaultLimits();
+       monederoConfig();
+       loadDefaultLimits();
        initWall();
        serialWelcome();
        cbi(OUTRUT,L2);
@@ -315,28 +324,15 @@ void monederoSetup() {
        coin_id = 8;
        led = 0;
        payment_money = 0;
-	   open_wall = 0;
 	   wall = 0;
-       while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
-       while(calibrate == true) serialWatchdog();
+       //while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
+       //while(calibrate == true) serialWatchdog();
 }
 
-
+#define LOBOTIME 20000
 
 void monederoLoop() {
-    if (coin_state == 4){
-        coin_state = 0;
-        //newCoin();
-    }
-    /*if(close_wall){
-        if(millis() - t_wall > WALL_TIMEOUT){
-            cbi(OUTRUT,M1_bk);
-			close_wall = 1;
-			serialPrintLn("Cierro!");
-            open_wall = 1;
-        }
-    }*/
-	 if(wall){
+	if(wall){
         if(millis() - t_close > WALL_TIMEOUT){
             cbi(OUTRUT,M1_bk);
         }
@@ -347,6 +343,10 @@ void monederoLoop() {
             led = 0;
         }
     }
+	
+	if ((millis()>LOBOTIME)&&!lobotomy) {
+		monederoParar();
+	}
 }
 
 void monederoSetCallbackCorrecto(void(*f)()) {
