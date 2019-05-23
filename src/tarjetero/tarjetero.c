@@ -27,6 +27,8 @@ static int luz;
 static int encendido;
 static int n;
 static int falsoFlanco;
+static int num;
+static int den;
 
 ISR(SO1_vect) {
     flancos[flanco_actual] = micros();
@@ -61,12 +63,6 @@ ISR(SO1_vect) {
     flanco_actual++;
 }
 
-/*void corrige(){ //Para evitar falsos flancos o si se pasa mal la tarjeta
-  if(((flancos[flanco_actual]-flancos[flanco_actual-1])>10000000) && (flanco_actual>1)){
-    flanco_actual = 0;
-  }
-  }*/
-
 int whoMax(float *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
   float max = c[0];
   int who = 0;
@@ -89,12 +85,47 @@ void tanimoto() {
   float jaccard[n];
   serialPrint("Pesos jaccard \t");
   for (int j = 0; j < n; j++) {
+	  /*
+	  num = sumData(a[j] & hexadecimal);
+	  den = (sumData(a[j] | hexadecimal));
+	  asm volatile (
+    "push r17     \n"		//numerador
+    "push r19     \n"		//denominador
+    "push r16     \n"		//auxiliar
+    "mov r17, %1  \n"
+    "mov r19, %2  \n"
+    "tst r19      \n"		//Comprobar si denominador igual a 0
+    "breq zero    \n"
+    "clr %0       \n"		//Poner cociente a 0
+    "mov r16,r19  \n"		//Inicializar auxiliar con denominador
+	"lsl r17	  \n"		//Incrementar valor de numerador para hacer division entera (x2)
+	"lsl r17	  \n"		//(x4)
+	"lsl r17	  \n"		//(x8)
+	"lsl r17	  \n"		//(x16)
+    "start:       \n"
+    " cp r17, r16 \n"		
+    " brge loop   \n"		//Salir cuando numerador menor que auxiliar
+    " jmp end     \n"
+    "loop:        \n"		//Incrementar valor auxiliar hasta que sea mayor o igual al numerador
+    " inc %0      \n"		//Incrementar cociente en 1
+    " add r16,r19 \n"		
+    " jmp start   \n"		
+    "zero:        \n"		//Caso en que el denominador es igual a 0
+    " clr %0      \n"		//Cociente es 0
+    "end:         \n"
+    "pop r16      \n"
+    "pop r19      \n"
+    "pop r17      \n"
+    :"=r"(jaccard[j])		//Salida
+	:"r"(num),"r"(den)		//Entradas (numerador, denominador)
+  );
+	  */
     jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
     serialPrintFloat(jaccard[j]);
     serialPrint("\t");
   }
   flanco_actual = 0;
-  if ((jaccard[whoMax(jaccard)] >= 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.
+  if ((jaccard[whoMax(jaccard)] >= 0.75)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=12
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
     //digitalWrite(S01, HIGH);
