@@ -23,8 +23,8 @@ void serialBegin(unsigned long baud) {
 }
 
 void serialWrite(char data) {
-  while (!rbi(UCSR2A,UDRE2)); // wait for the charater to be fully received
-  UDR2 = data;
+  while (!rbi(TX_CHECK_REG,TX_CHECK_BIT)); // wait for the charater to be fully received
+  SERIAL_TX = data;
 }
 
 void serialPrint(const char * str) {
@@ -68,17 +68,17 @@ void serialPrintFloat(float f) {
 }
 
 unsigned char serialReadChar(){
-  if(rbi(UCSR0A,RXC0)) return(UDR0); //wait for the charater to be fully received
+  if(rbi(RX_CHECK_REG,RX_CHECK_BIT)) return(SERIAL_RX); //wait for the charater to be fully received
   else return 0;        //return the received charater
 }
 
-void serialReadString(char* command){
+void serialReadString(char* command, int timeout){
   unsigned char x;
   uint8_t i = 0, reading = 1;
   do{ //receive the characters until ENTER is pressed (ASCII for ENTER = 13)
-   x = serialReadChar();
-   if ((x) && (x != '\n')) command[i++] = x; //and store the received characters into the array string[] one-by-one
-   else reading = 0;
+	   while(!(x = serialReadChar()) && timeout--);
+	   if ((x) && (x != '\n')) command[i++] = x; //and store the received characters into the array string[] one-by-one
+	   else reading = 0;
   } while (reading);
   command[i] = '\0'; //insert NULL to terminate the string
 }

@@ -1,3 +1,6 @@
+#include <string.h>
+//#include <stdbool.h>
+
 #include "monedero.h"
 
 #include "time.h"
@@ -5,23 +8,27 @@
 #include "pinout.h"
 #include "serial.h"
 #include <string.h>
-//#define SERIAL_DEBUG
+#define SERIAL_DEBUG
 
 #define readSO2() rbi(PIND,INT1)
 #define readSO3() rbi(PIND,INT2)
-#define readSW2() rbi(PIND,INT2)
+#define readSW2() rbi(PINK,PCINT17)
 
 
 #define CALIB_TIMEOUT 10000
-#define WALL_TIMEOUT 20000
+#define WALL_TIMEOUT 1000
 
 static void (*callback) ();
 
 // Detection variables
-unsigned long t, t2u, t3u, t2d, d, s, t_open, t_led;
-static uint8_t payment_money, wall, led;
-uint8_t coin_state, calibrate, coin_id;
+unsigned long t_coin, t2u, t3u, t2d ;
+static unsigned long d, s, t_close, t_led;
 
+// Flags
+static uint8_t led, calibrate, lobotomy;
+uint8_t coin_state, pin_sensor;
+static uint8_t payment_money, coin_id;
+static uint8_t wall;
 
 struct coin_params {
     float ds_min;
@@ -30,7 +37,41 @@ struct coin_params {
 
 static struct coin_params coins[8];
 
+void loadDefaultLimits(){
+    coins[0].ds_min = 10.0; coins[0].ds_max = 0.00;		// 1c coin
+    coins[1].ds_min = 4.38; coins[1].ds_max = 5.14;		// 2c coin
+    coins[2].ds_min = 2.50; coins[2].ds_max = 2.70;		// 5c coin
+    coins[3].ds_min = 3.28; coins[3].ds_max = 3.76;		// 10c coin
+    coins[4].ds_min = 2.16; coins[4].ds_max = 2.30;		// 20c coin
+    coins[5].ds_min = 1.75; coins[5].ds_max = 1.85;		// 50c coin
+    coins[6].ds_min = 1.90; coins[6].ds_max = 2.05;		// 100c coin
+    coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;		// 200c coin
+}
 
+void newCoin();
+
+// ###################  INTERRUPT SERVICE ROUTINES IN ASM ########################
+
+extern void asm_ISR_SO2();
+extern void asm_ISR_SO3();
+
+ISR(SO2_vect){   // ISR of first optic sensor
+	pin_sensor = PIND;
+	t_coin = micros();
+	asm_ISR_SO2();
+	if(coin_state == 3) newCoin();
+}
+
+ISR(SO3_vect){   // ISR of first optic sensor
+	pin_sensor = PIND;
+	t_coin = micros();
+	asm_ISR_SO3();
+	
+}
+
+// ###################  INTERRUPT SERVICE ROUTINES IN C ##########################
+
+/*
 ISR(SO2_vect){   // ISR of first optic sensor
         if (readSO2()){
             if (coin_state == 0){
@@ -77,7 +118,8 @@ ISR(SO3_vect){   // ISR of first optic sensor
             }
         } else {
             if (coin_state == 3){
-                coin_state = 4;
+                coin_state = 0;
+				newCoin();
 #ifdef SERIAL_DEBUG
                 serialPrintLn("Sale SO3");
 #endif
@@ -89,30 +131,24 @@ ISR(SO3_vect){   // ISR of first optic sensor
             }
         }
 }
+*/
 
 ISR(SW2_vect){
-        sbi(OUTRUT,M1_bk);
-        if(!readSW2()){
-            t_open = millis();
-            wall = 0;
-        }
-        else {
-            wall = 1;
-        }
-}
-//Functions
-void loadDefaultLimits(){
-    coins[0].ds_min = 10.0; coins[0].ds_max = 0.00;
-    coins[1].ds_min = 4.38; coins[1].ds_max = 5.14;
-    coins[2].ds_min = 2.57; coins[2].ds_max = 2.70;
-    coins[3].ds_min = 3.28; coins[3].ds_max = 3.76;
-    coins[4].ds_min = 2.25; coins[4].ds_max = 2.30;
-    coins[5].ds_min = 1.75; coins[5].ds_max = 1.85;
-    coins[6].ds_min = 2.6; coins[6].ds_max = 3.23;
-    coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;
+	sbi(OUTRUT,M1_bk);
+	if(readSW2()&&(!lobotomy)){
+		t_close = millis();
+		wall = 1;
+	} else if (lobotomy){
+		cbi(EIMSK,INT1);	// Interrupt mask enable
+		cbi(EIMSK,INT2);
+		cbi(PCICR, PCIE2);
+	} else {
+		wall = 0;
+	}
 }
 
-// CAL Functions ###################################################
+
+// ################### CAL Functions ##############################
 
 void printLimitsCoin(){
     serialPrint("Now coin ID = ");
@@ -141,77 +177,60 @@ void printLimitsAll(){
 }
 
 void resetLimit(struct coin_params* coin){
+	serialPrint("Resetting limits of coin id= ");
+	serialPrintInt(coin_id);
+	serialPrint("\n\n");
     coin->ds_min = 100;
     coin->ds_max = 0.0;
 }
 
 void serialWelcome(){
     serialPrintLn("Available commands:");
-    serialPrintLn("CAL - Calibrate ratios limits");
-    serialPrintLn("RUN - Exit calibration mode");
-    serialPrintLn("ALL - Print all ratios limits");
+    serialPrintLn("cal - Calibrate ratios limits");
+    serialPrintLn("run - Exit calibration mode");
+    serialPrintLn("all - Print all ratios limits");
     serialPrintLn("When in CAL mode:");
     serialPrintLn("\t[value in cents] of coin");
-    serialPrintLn("\tRES restarts coin limits");
+    serialPrintLn("\tres restarts coin limits");
     printLimitsAll();
 }
 
 void serialWatchdog(){
-    static uint8_t delay = 0;
-    static char command[20]="";
-    if(delay < 255) {
-        delay++;
-    }
-    else {
-        delay = 0;
-        if (rbi(UCSR2A,RXC2)){
-            serialReadString(command);
-            serialPrint(command);
-            if(!strcmp(command,"cal")){
-                serialPrintLn(": CALIBRATE MODE, SELECT COIN!");
-                calibrate = 1;
-            } else if (!strcmp(command,"run")){
-                serialPrintLn(": RUN MODE");
-                calibrate = 0;
-                printLimitsAll();
-            } else if (!strcmp(command,"res")){
-                serialPrintLn(": RESET LIMIT OF SELECTED COIN");
-                resetLimit(&coins[coin_id]);
-            } else if (!strcmp(command,"all")){
-                serialPrintLn(": SHOW CALIBRATED RANGES");
-                printLimitsAll();
-            } else if (!strcmp(command,"2")){
-                coin_id = 1;
-                serialPrintLn(": configuring 2c coin");
-            } else if (!strcmp(command,"5")){
-                coin_id = 2;
-                serialPrintLn(": configuring 5c coin");
-            } else if (!strcmp(command,"10")){
-                coin_id = 3;
-                serialPrintLn(": configuring 10c coin");
-            } else if (!strcmp(command,"20")){
-                coin_id = 4;
-                serialPrintLn(": configuring 20c coin");
-            } else if (!strcmp(command,"50")){
-                coin_id = 5;
-                serialPrintLn(": configuring 50c coin");
-            } else if (!strcmp(command,"100")){
-                coin_id = 6;
-                serialPrintLn(": configuring 100c coin");
-            } else if (!strcmp(command,"200")){
-                coin_id = 7;
-                serialPrintLn(": configuring 200c coin");
-            } else serialPrintLn(": error, command not available");
-        }
+  char command[20]="";
+    if (rbi(RX_CHECK_REG, RX_CHECK_BIT)){
+		serialReadString(command, 2000);
+		serialPrint(command);
+		if(!strcmp(command,"cal")) { serialPrintLn(": CALIBRATE MODE"); calibrate = true; } 
+		else if (!strcmp(command,"run")) { serialPrintLn(": RUN MODE"); calibrate = false; } 
+		else if (!strcmp(command,"res")) { serialPrintLn(": RESET COIN LIMITS"); resetLimit(&coins[coin_id]); } 
+		else if (!strcmp(command,"all")) { serialPrintLn(": RESET COIN LIMITS"); printLimitsAll(); } 
+		else if (!strcmp(command,"2")) { serialPrintLn(": configuring 2c coin"); coin_id = 1; }
+		else if (!strcmp(command,"5")) { serialPrintLn(": configuring 5c coin"); coin_id = 2; }
+		else if (!strcmp(command,"10")) { serialPrintLn(": configuring 10c coin"); coin_id = 3; }
+		else if (!strcmp(command,"20")) { serialPrintLn(": configuring 20c coin"); coin_id = 4; }
+		else if (!strcmp(command,"50")) { serialPrintLn(": configuring 50c coin"); coin_id = 5; }
+		else if (!strcmp(command,"100")) { serialPrintLn(": configuring 100c coin"); coin_id = 6; }
+		else if (!strcmp(command,"200")) { serialPrintLn(": configuring 200c coin"); coin_id = 7; }	
+		else serialPrintLn(": error, command not available");
     }
 }
 
-// RUN Functions ###################################################
+void adjustCoin(float ds){
+	serialPrint("Last coin ds ratio is: ");
+	serialPrintFloat(ds);
+	serialPrint("\n");
+	if(coins[coin_id].ds_min > ds) coins[coin_id].ds_min = ds;
+	if(coins[coin_id].ds_max < ds) coins[coin_id].ds_max = ds;
+	printLimitsCoin();
+}
+
+// ################### RUN Functions ################################
 
 void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
-    cbi(OUTRUT,M1_bk);
     payment_money += cents;           	// Add coin value to money of payment in progress
-    serialPrint("Coin added to payment, total inserted money: ");
+    serialPrint("\nCoin of ");
+	serialPrintInt(cents);
+	serialPrintLn(" added to payment, total inserted money: ");
     serialPrintInt(payment_money);
     serialPrintLn(" cents.\n");
     if (payment_money >= 120){
@@ -230,53 +249,51 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 
 void compareCoin(float ds){
     uint8_t cents;
-
-    if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
-    else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
-    else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
-    else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
+    if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
     else if ((ds >= coins[2].ds_min) && (ds <= coins[2].ds_max)) cents = 5;     // Object detected as 5c coin
-    else if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
+    else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
+    else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
+    else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
+    else if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
     else if ((ds >= coins[7].ds_min) && (ds <= coins[7].ds_max)) cents = 200;   // Object detected as 200c coin
-
-
-
-
-
         //else if ((ds > coins[2].ds_max) || (ds < coins[7].ds_min)) cents = 1;   // Object detected as 1c coin
     else {            // Object detected out of range
         cents = 0;
         serialPrintLn("Coin not detected in pre-calibrated ranges, try again.\n");
     }
     if (cents > 0) {
-
+        serialPrint("New coin detected of ");
+        serialPrintInt(cents);
+        serialPrintLn(" cents.");
         if ((cents > 5) && (cents < 200)){    // Accepted coins condition
             coinAccepted(cents);
-            serialPrint("New coin detected of ");
-            serialPrintInt(cents);
-            serialPrintLn(" cents.");
         } else {
             serialPrintLn("Coin rejected, sorry.");
         }
     }
 }
 
-// Core Functions ###################################################
+// ################### Core Functions #########################
+
+void monederoParar(){
+	serialPrintLn("\nMonedero out of service :(");
+	cbi(OUTRUT,M1_bk);
+	lobotomy = 1;
+}
 
 void newCoin(){
     float ds;
     d = t3u - t2u;
     s = t2d - t3u;
     ds = (float)d / s;
-    serialPrint("New coin introduced:\t");
 #ifdef SERIAL_DEBUG
-    serialPrint("td\ts");
+    serialPrint("New coin introduced:\t");
+    serialPrint("d\ts\n\t\t\t");
     serialPrintInt(d); 	serialPrint("\t");
     serialPrintInt(s);
-#endif
-    serialPrint("\nwd/s = ");
-    serialPrintFloat(ds);
-    compareCoin(ds);
+	#endif
+    if (!calibrate) compareCoin(ds);
+	else adjustCoin(ds);
 }
 
 void monederoConfig() {   // Configure I/O ports and interruptions for monedero block
@@ -289,39 +306,43 @@ void monederoConfig() {   // Configure I/O ports and interruptions for monedero 
     sbi(EIMSK,INT2);
     sbi(PCMSK2,PCINT17);
     sbi(PCICR, PCIE2);
+	cbi(DDRD, 1);
+	cbi(DDRD, 2);
+	sbi(DDRL, 6);
     sei();
 }
 
 void initWall(){
-    if(!readSW2()) cbi(OUTRUT,M1_bk);
+	
+	if(readSW2()){
+		#ifdef SERIAL_DEBUG
+			serialPrintLn("Still closed");
+		#endif
+		cbi(OUTRUT,M1_bk);
+	}
 }
 
 void monederoSetup() {
 
-     monederoConfig();
-      loadDefaultLimits();
+       monederoConfig();
+       loadDefaultLimits();
        initWall();
        serialWelcome();
-
-       sbi(OUTRUT,M1_bk);
        cbi(OUTRUT,L2);
        calibrate = false;
        coin_state = 0;
        coin_id = 8;
        led = 0;
        payment_money = 0;
+	   wall = 0;
        while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();
        while(calibrate == true) serialWatchdog();
+	   serialPrintLn("Monedero is running\n");
 }
 
-
 void monederoLoop() {
-    if (coin_state == 4){
-        coin_state = 0;
-        newCoin();
-    }
-    if(!wall){
-        if(millis() - t_open > WALL_TIMEOUT){
+	if(wall){
+        if(millis() - t_close > WALL_TIMEOUT){
             cbi(OUTRUT,M1_bk);
         }
     }
@@ -336,3 +357,29 @@ void monederoLoop() {
 void monederoSetCallbackCorrecto(void(*f)()) {
     callback = f;
 }
+
+//#define SERIAL_DEBUG
+#define CALIB_TIMEOUT 20000
+#define WALL_TIMEOUT 2
+	if ((ds >= coins[3].ds_max) || (ds <= coins[5].ds_min)) {
+		cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
+	}
+	if ((ds >= coins[2].ds_min) && (ds <= coins[2].ds_max)) {cents = 5; cbi(OUTRUT,M1_bk);}     // Object detected as 5c coin
+	else if ((ds >= coins[1].ds_min) && (ds <= coins[1].ds_max)) cents = 2;     // Object detected as 2c coin
+	else if ((ds >= coins[7].ds_min) && (ds <= coins[7].ds_max)) cents = 200;   // Object detected as 200c coin
+	else if ((ds >= coins[6].ds_min) && (ds <= coins[6].ds_max)) cents = 100;   // Object detected as 100c coin
+	else if ((ds >= coins[5].ds_min) && (ds <= coins[5].ds_max)) cents = 50;    // Object detected as 50c coin
+	else if ((ds >= coins[4].ds_min) && (ds <= coins[4].ds_max)) cents = 20;    // Object detected as 20c coin
+	else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
+    else cents = 1;
+	
+    if ((cents < 10) || (cents > 100)){    // Accepted coins condition
+        serialPrintLn("\nCoin rejected, sorry.");
+		cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
+    } else {
+		coinAccepted(cents);
+	#ifdef SERIAL_DEBUG
+		serialPrint("\nwd/s =");
+		serialPrintFloat(ds);
+		serialPrint("\n");
+	#endif

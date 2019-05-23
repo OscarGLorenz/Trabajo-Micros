@@ -3,5 +3,6 @@
 
 void monederoLoop();
 void monederoSetup();
+void monederoParar();
 void monederoSetCallbackCorrecto(void(*f)());
 #endif
