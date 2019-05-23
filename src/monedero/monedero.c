@@ -329,7 +329,6 @@ void monederoSetup() {
        //while(calibrate == true) serialWatchdog();
 }
 
-#define LOBOTIME 20000
 
 void monederoLoop() {
 	if(wall){
@@ -343,10 +342,6 @@ void monederoLoop() {
             led = 0;
         }
     }
-	
-	if ((millis()>LOBOTIME)&&!lobotomy) {
-		monederoParar();
-	}
 }
 
 void monederoSetCallbackCorrecto(void(*f)()) {
