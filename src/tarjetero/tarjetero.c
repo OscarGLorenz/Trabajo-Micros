@@ -47,6 +47,7 @@ static int traduce;         //Bandera para empezar a traducir
 static uint16_t hexadecimal;
 //Patrones de tarjetas
 static uint16_t a[] = {0x1230, 0x4560, 0x7890, 0x0970, 0x5310, 0x6420};  //POSIBLES COMBINACIONES DE TARJETAS
+static uint8_t abono[] = {1, 2, 3, 4, 5, 6}; 
 static uint16_t b[] = {123, 456, 789, 97, 531, 642};
 //Variables de control de led
 static int luz;
@@ -159,11 +160,20 @@ void tanimoto() {
   if ((jaccard[whoMax(jaccard)] >= 3)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
+	if(abono[whoMax(jaccard)]>0){
+	abono[whoMax(jaccard)] = abono[whoMax(jaccard)]-1;
+	serialPrint("Viajes restantes: ");
+	serialPrintInt(abono[whoMax(jaccard)]);
+	serialPrint("\n");
     //digitalWrite(S01, HIGH);
     sbi(OUTRUT, L1);
     luz = millis();
     encendido = 1;
 	callback();
+	}
+	else{
+		serialPrint("No quedan mas viajes\n");
+	}
   }
   else{
   serialPrint("\t Tarjeta rechazada");
@@ -236,4 +246,5 @@ void tarjeteroParar() {
 	funciona = 0;
 	cbi(OUTRUT, L1);
 	encendido = 0;
+	serialPrint("Tarjetero deshabilitado\n");
 }
