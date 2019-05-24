@@ -31,21 +31,21 @@ static uint8_t payment_money, coin_id;
 static uint8_t wall;
 
 struct coin_params {
-    uint16_t ds_min;
-    uint16_t ds_max;
+    float ds_min;
+    float ds_max;
 };
 
 static struct coin_params coins[8];
 
 void loadDefaultLimits(){
-    coins[0].ds_min = 1000; coins[0].ds_max = 0;		// 1c coin
-    coins[1].ds_min = 438; coins[1].ds_max = 514;		// 2c coin
-    coins[2].ds_min = 250; coins[2].ds_max = 270;		// 5c coin
-    coins[3].ds_min = 328; coins[3].ds_max = 376;		// 10c coin
-    coins[4].ds_min = 216; coins[4].ds_max = 230;		// 20c coin
-    coins[5].ds_min = 175; coins[5].ds_max = 185;		// 50c coin
-    coins[6].ds_min = 190; coins[6].ds_max = 205;		// 100c coin
-    coins[7].ds_min = 155; coins[7].ds_max = 162;		// 200c coin
+    coins[0].ds_min = 10.0; coins[0].ds_max = 0.00;		// 1c coin
+    coins[1].ds_min = 4.38; coins[1].ds_max = 5.14;		// 2c coin
+    coins[2].ds_min = 2.50; coins[2].ds_max = 2.70;		// 5c coin
+    coins[3].ds_min = 3.28; coins[3].ds_max = 3.76;		// 10c coin
+    coins[4].ds_min = 2.16; coins[4].ds_max = 2.30;		// 20c coin
+    coins[5].ds_min = 1.75; coins[5].ds_max = 1.85;		// 50c coin
+    coins[6].ds_min = 1.90; coins[6].ds_max = 2.05;		// 100c coin
+    coins[7].ds_min = 1.55; coins[7].ds_max = 1.62;		// 200c coin
 }
 
 void newCoin();
@@ -154,8 +154,8 @@ void printLimitsCoin(){
     serialPrint("Now coin ID = ");
     serialPrintInt(coin_id);
     serialPrintLn(" ratios limits are:");
-    serialPrint("d/s min:\t"); serialPrintInt(coins[coin_id].ds_min); serialPrint("\n");
-    serialPrint("d/s max:\t"); serialPrintInt(coins[coin_id].ds_max); serialPrint("\n");
+    serialPrint("d/s min:\t"); serialPrintFloat(coins[coin_id].ds_min); serialPrint("\n");
+    serialPrint("d/s max:\t"); serialPrintFloat(coins[coin_id].ds_max); serialPrint("\n");
     serialPrint("\n");
 }
 
@@ -165,13 +165,13 @@ void printLimitsAll(){
     serialPrintLn("\t\t-------------------------------------------------------------");
     serialPrint("d/s min:\t");
     for(int i = 0; i<8 ; i++) {
-        serialPrintInt(coins[i].ds_min);
+        serialPrintFloat(coins[i].ds_min);
         serialPrint("\t");
     }
     serialPrint("\nd/s max:\t");
     for(int i = 0; i<8 ; i++) {
-        serialPrintInt(coins[i].ds_max);
-        serialPrint("  ");
+        serialPrintFloat(coins[i].ds_max);
+        serialPrint("\t");
     }
     serialPrintLn("\n");
 }
@@ -215,9 +215,9 @@ void serialWatchdog(){
     }
 }
 
-void adjustCoin(uint16_t ds){
+void adjustCoin(float ds){
     serialPrint("Last coin ds ratio is: ");
-    serialPrintInt(ds);
+    serialPrintFloat(ds);
     serialPrint("\n");
     if(coins[coin_id].ds_min > ds) coins[coin_id].ds_min = ds;
     if(coins[coin_id].ds_max < ds) coins[coin_id].ds_max = ds;
@@ -247,7 +247,7 @@ void coinAccepted(uint8_t cents){   	// Accepts coin if ratio was validated
 
 }
 
-void compareCoin(uint16_t ds){
+void compareCoin(float ds){
     uint8_t cents;
     if ((ds >= coins[3].ds_max) || (ds <= coins[5].ds_min)) {
         cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
@@ -261,7 +261,7 @@ void compareCoin(uint16_t ds){
     else if ((ds >= coins[3].ds_min) && (ds <= coins[3].ds_max)) cents = 10;    // Object detected as 10c coin
     else cents = 1;
 
-    if ((cents < 10) || (cents > 100)){    	// Accepted coins condition
+    if ((cents < 10) || (cents > 100)){    // Accepted coins condition
         serialPrintLn("\nCoin rejected, sorry.");
         cbi(OUTRUT,M1_bk);					// Motor switched on to open wall
     } else {
@@ -269,7 +269,7 @@ void compareCoin(uint16_t ds){
     }
 #ifdef SERIAL_DEBUG
     serialPrint("\nwd/s =");
-		serialPrintInt(ds);
+		serialPrintFloat(ds);
 		serialPrint("\n");
 #endif
 }
@@ -283,17 +283,17 @@ void monederoParar(){
 }
 
 void newCoin(){
-    uint16_t ds;
-    //float ds;
+    // uint8_t ds;
+    float ds;
     d = t3u - t2u;
     s = t2d - t3u;
-    ds = (uint16_t)(d * 100 / s);
-    //ds = (float) d / s;
+    // ds = (uint8_t)(d<<7 / s);
+    ds = (float) d / s;
 #ifdef SHOW_RATIOS
     serialPrint("New coin introduced:\t");
 		serialPrint("d = "); serialPrintInt(d);
 		serialPrint("\td = "); serialPrintInt(s);
-		serialPrint("\td/s = "); serialPrintInt(ds);
+		serialPrint("\td/s = "); serialPrintFloat(ds);
 #endif
     if (!calibrate) compareCoin(ds);
     else adjustCoin(ds);
