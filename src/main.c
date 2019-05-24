@@ -1,68 +1,106 @@
+/***********************************************************************************
+*
+* FICHERO: main.c
+*
+* DESCRIPCIÓN :
+* 	Gestiona los tres módulos independientes del trabajo. Lleva la cuenta de
+* 	personas en la atracción. Además hace inicializaciones varias necesarias para
+* 	el funcionamiento de la maqueta.
+*
+*
+* AUTORES:
+*
+* 	Miguel Fernández Cortizas
+*
+*   Óscar García Lorenz
+*
+***********************************************************************************/
+
+// Librerias comunes
 #include "macros.h"
 #include "time.h"
 #include "pinout.h"
 #include "serial.h"
 
+// Módulos del trabajo
 #include "atraccion/atraccion.h"
 #include "tarjetero/tarjetero.h"
 #include "monedero/monedero.h"
 
-// Numero de pasajeros subidos a la atraccion
+// Numero de pasajeros subidos a la atracción
 int pasajerosListos = 0;
 // Estado del pendulo
 bool penduloListo = true;
 
-// TarjeteMonedero sutituto
+// Variable para limitar pulsaciones en SW3
 unsigned long debounce = 0;
 
 // Callback de nuevo pasajero
 void nuevoPasajero() {
-	pasajerosListos++;
+    pasajerosListos++;
 }
 
 // Callback de finalización
 void finalizado() {
-	penduloListo = true;
+    penduloListo = true;
+}
+
+// Callback de emergencia
+void emergencia() {
+    // Se paran tarjetero y monedero
+    tarjeteroParar();
+    monederoParar();
+    serialPrintLn("EMERGENCIA!!!!");
 }
 
 void setup() {
-	// Outputs de la maqueta
-	DDR_OUTRUT = 0xFF;
+    // Outputs de la maqueta
+    DDR_OUTRUT = 0xFF;
 
-	// Serial
-  serialBegin(9600);
+    // Serial
+    serialBegin(9600);
 
-	// Time
-  initTime();
+    // Time
+    initTime();
 
-  // Setups
-	atraccionSetup();
-	// tarjeteroSetup();
-	// monederoSetup();
+    // Setups
+    monederoSetup();
+    serialPrintLn("Monedero iniciado");
 
-	// Callbacks
-  // tarjeteroSetCallbackCorrecto(nuevoPasajero);
-  //	monederoSetCallbackCorrecto(nuevoPasajero);
-	atraccionSetCallbackFinalizado(finalizado);
+    tarjeteroSetup();
+    serialPrintLn("Tarjetero iniciado");
 
+    atraccionSetup();
+    serialPrintLn("Atracción iniciada");
+
+
+    // Callbacks
+    tarjeteroSetCallbackCorrecto(nuevoPasajero);
+    monederoSetCallbackCorrecto(nuevoPasajero);
+    atraccionSetCallbackFinalizado(finalizado);
+    atraccionSetCallbackEmergencia(emergencia);
+    serialPrintLn("Callbacks iniciados");
 }
 
 void loop() {
-	atraccionLoop();
-  //	tarjeteroLoop();
-  //	monederoLoop();
+    // Loops de cada parte
+    atraccionLoop();
+    tarjeteroLoop();
+    monederoLoop();
 
-	// TarjeteMonedero sutituto
-	if (!rbi(PINK,SW3) && millis() - debounce > 500 ) {
-		debounce = millis();
-		nuevoPasajero();
-	}
+    // Lectura del SW3 para añadir pasajeros manualmente
+    if (!rbi(PINK,SW3) && millis() - debounce > 500 ) {
+        debounce = millis();
+        nuevoPasajero();
+    }
 
-	if (pasajerosListos >= 4 && penduloListo) {
-		atraccionIniciar();
-		penduloListo = false;
-		pasajerosListos -= 4;
-	}
+    // Cuando hay 4 pasajeros y la atracción esta lista
+    if (pasajerosListos >= 4 && penduloListo) {
+        // Iniciar atracción y eliminar 4 pasajeros
+        atraccionIniciar();
+        penduloListo = false;
+        pasajerosListos -= 4;
+    }
 
 }
 

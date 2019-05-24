@@ -1,3 +1,21 @@
+/*************************************************************
+*
+* FICHERO: time.c
+*
+* DESCRIPCIÓN :
+* Libreria que permite medir tiempos en microsegundos y en milisegundos empleando el TIMER1.
+*
+*
+* AUTORES:
+*
+*   Óscar García Lorenz
+*   Miguel Fernández Cortizas
+*
+*************************************************************/
+
+
+
+
 #include "time.h"
 
 #include <avr/io.h>

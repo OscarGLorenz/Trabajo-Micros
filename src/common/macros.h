@@ -1,13 +1,22 @@
+/*************************************************************
+*
+* FICHERO: atraccion.h
+*
+* DESCRIPCIÓN :
+* 	Varias macros para el manejo de registros bit a bit
+*
+*************************************************************/
+
 #ifndef MACROS_H_
 #define MACROS_H_
 
-// Clear bit on port
-#define cbi(PORT,PIN) (PORT&= ~(1<<PIN))
-// Set bit on port
-#define sbi(PORT,PIN) (PORT|=(1<<PIN))
-// Toggle bit on port
-#define tbi(PORT,PIN) (PORT^=(1<<PIN))
-// Read bit on port
-#define rbi(PORT,PIN) ((PORT & (1<<PIN)) != 0)
+#define true 1
+#define false 0
 
-#endif
+#define mbi(pos) (1 << (pos))
+#define rbi(reg,bit) ((reg >> bit) & 0x01)  	// Leer bit de reg
+#define sbi(reg,bit) (reg |= mbi(bit))  		// Poner a 1 bit de reg
+#define cbi(reg,bit) (reg &= ~mbi(bit)) 		// Poner a 0 bit de reg
+#define tbi(reg,bit) (reg ^= mbi(bit))  		// Cambiar de valor bit de reg
+
+#endif // MACROS_H_
