@@ -16,9 +16,6 @@
 *
 *************************************************************/
 
-
-
-
 #include "serial.h"
 
 #define F_CPU 8000000
@@ -27,7 +24,6 @@
 #include <avr/io.h>
 
 // Inicializacion del serial en funcion del los baudios.
-
 void serialBegin(unsigned long baud) {
   // Fast mode
   sbi(UCSR2A,U2X2);
