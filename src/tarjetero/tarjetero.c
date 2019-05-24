@@ -246,4 +246,5 @@ void tarjeteroParar() {
 	funciona = 0;
 	cbi(OUTRUT, L1);
 	encendido = 0;
+	serialPrint("Tarjetero deshabilitado\n");
 }
