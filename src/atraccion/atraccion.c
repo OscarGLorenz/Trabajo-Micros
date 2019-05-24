@@ -75,6 +75,7 @@ ISR(SO4_vect){
 	if (dir) pos++;
 	else pos--;
 
+	// Esta rutina es equivalente a lo de arriba
 /*
         asm volatile(
         " push r16\n"
@@ -85,27 +86,31 @@ ISR(SO4_vect){
         " push r30\n"
         " push r31\n"
 
+		// Cargamos pos
         " ld r24,Z+ \n"
         " ld r25, Z \n"
 
+        // Cargamos dir
         " ld r16,X \n"
         " tst r16 \n"
         " breq zero \n"
-        //sumar 1
 
+        // sumar 1
         "adiw r24,1 \n"
 
         " jmp end\n"
         "zero: \n"
 
+		// restar 1
         "sbiw r24,1 \n"
 
 
         "end: \n"
 
+		// Guardamos pos
         "sbiw z,1 \n"
-        " st Z+,r24 \n"
-        " st Z,r25 \n"
+        "st Z+,r24 \n"
+        "st Z,r25 \n"
 
         " pop r31\n"
         " pop r30\n"
@@ -126,7 +131,9 @@ ISR(SO4_vect){
 	volatile uint32_t ahora = now;
 	// Calculamos la diferencia de tiempos
 	dif = now - past;
-/*        asm volatile(
+
+	// Diferencia entre now y past
+/*      asm volatile(
         "push r26 \n"
         "push r27 \n"
         "push r30 \n"
@@ -134,6 +141,7 @@ ISR(SO4_vect){
         "push r16 \n"
         "push r17 \n"
 
+		// Ejecuta la resta, utilizando pocos registros
         "ld r16,X \n"
         "ld r17,Z+ \n"
         "sub r16,r17\n"
@@ -174,8 +182,8 @@ ISR(SO4_vect){
 	times[4] = dif;
 
 
-/*
-        asm volatile(
+/*	// Desplazamiento de times y dif
+	asm volatile(
         "push r31         \n"
         "push r30         \n"
         "push r29         \n"
@@ -185,26 +193,27 @@ ISR(SO4_vect){
         "push r16         \n"
         "push r17         \n"
         "push r18         \n"
-        "movw  Y,X        \n"
-        "adiw  Y,4        \n"
-        "ldi r18,4        \n"
+        "movw  Y,X        \n" // Copia los dos punteros
+        "adiw  Y,4        \n" // Avanza al siguiente elemento de array
+        "ldi r18,4        \n" // Contador a i=4
+                              // times[n] = times[n+1]
         "loop2:           \n"
-        "   ldi r17,4     \n"
+        "   ldi r17,4     \n" // Contador a j=4
         "   loop1:        \n"
-        "     ld r16, Y+  \n"
+        "     ld r16, Y+  \n" // Se va moviendo byte a byte
         "     st X+, r16  \n"
-        "     dec r17     \n"
-        "     tst r17     \n"
+        "     dec r17     \n" // j--
+        "     tst r17     \n" // Si j=0 finalizar
         "     brne loop1  \n"
-        "   dec r18       \n"
-        "   tst r18       \n"
+        "   dec r18       \n" // i--
+        "   tst r18       \n" // Si i=0 finalizar
         "   brne loop2    \n"
-        "ldi r17,4        \n"
+        "ldi r17,4        \n" // k=4
         "loop3:           \n"
-        "   ld r16, Z+    \n"
+        "   ld r16, Z+    \n" // Mover dif a times[4]
         "   st X+, r16    \n"
-        "   dec r17       \n"
-        "   tst r17       \n"
+        "   dec r17       \n" // k--
+        "   tst r17       \n" // Si k=0 finalizar
         "   brne loop3    \n"
         "pop r18          \n"
         "pop r17          \n"
@@ -429,7 +438,7 @@ void atraccionLoop() {
 
 		case CARGA :
 		// Espera 10s para cambiar al modo cuelfa
-		if (millis() - auxTime > 1000 ){
+		if (millis() - auxTime > 100 ){
 			mode = CUELGA;
 			// Encendemos motor y apagamos luz.
 			sbi(OUTRUT,M2_en);

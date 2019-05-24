@@ -15,7 +15,7 @@
 #define readSW2() rbi(PINK,PCINT17)
 
 
-#define CALIB_TIMEOUT 1000
+#define CALIB_TIMEOUT 15000
 #define WALL_TIMEOUT 2
 
 static void (*callback) ();
@@ -171,7 +171,7 @@ void printLimitsAll(){
     serialPrint("\nd/s max:\t");
     for(int i = 0; i<8 ; i++) {
         serialPrintInt(coins[i].ds_max);
-        serialPrint("  ");
+        serialPrint("\t");
     }
     serialPrintLn("\n");
 }
@@ -201,7 +201,7 @@ void serialWatchdog(){
         serialReadString(command, 2000);
         serialPrint(command);
         if(!strcmp(command,"cal")) { serialPrintLn(": CALIBRATE MODE"); calibrate = true; }
-        else if (!strcmp(command,"run")) { serialPrintLn(": RUN MODE"); calibrate = false; }
+        else if (!strcmp(command,"run")) { serialPrintLn(": RUN MODE"); calibrate = 2; }
         else if (!strcmp(command,"res")) { serialPrintLn(": RESET COIN LIMITS"); resetLimit(&coins[coin_id]); }
         else if (!strcmp(command,"all")) { serialPrintLn(": RESET COIN LIMITS"); printLimitsAll(); }
         else if (!strcmp(command,"2")) { serialPrintLn(": configuring 2c coin"); coin_id = 1; }
@@ -309,13 +309,14 @@ void monederoConfig() {   // Configure I/O ports and interruptions for monedero 
     sbi(EIMSK,INT2);
     sbi(PCMSK2,PCINT17);	// Pin change mask enable for SW2
     sbi(PCICR, PCIE2);
-    cbi(DDRD, 1);		// Set PORT D as output for M1_bk, M1_en
-    cbi(DDRD, 2);
-    sbi(DDRL, 6);		// Set port L as input for SW2
+    cbi(DDRD, PD1);		// Set PORT D as output for M1_bk, M1_en
+    cbi(DDRD, PD2);
+    sbi(DDRL, PD6);		// Set port L as input for SW2
     sei();
 }
 
 void initWall(){
+    //serialPrintInt(readSW2());
     if(readSW2()){
 #ifdef SERIAL_DEBUG
         serialPrintLn("Still closed");
@@ -338,7 +339,7 @@ void monederoSetup() {
     payment_money = 0;
     wall = 0;
 
-    while((CALIB_TIMEOUT - millis()) > 0) serialWatchdog();		// Enable UART calibration for CALIB_TIMEOUT ms. Will lock in CAL mode if "cal"
+    while(((CALIB_TIMEOUT - millis()) > 0) && calibrate != 2) serialWatchdog();		// Enable UART calibration for CALIB_TIMEOUT ms. Will lock in CAL mode if "cal"
     while(calibrate == true) serialWatchdog();					// Will lock in CAL mode if "cal"
     serialPrintLn("Monedero is running\n");
 }

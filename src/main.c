@@ -42,14 +42,15 @@ void setup() {
    initTime();
 
    // Setups
-	atraccionSetup();
-    serialPrintLn("Atracción iniciada");
+    monederoSetup();
+    serialPrintLn("Monedero iniciado");
 
     tarjeteroSetup();
     serialPrintLn("Tarjetero iniciado");
 
-    monederoSetup();
-    serialPrintLn("Monedero iniciado");
+    atraccionSetup();
+    serialPrintLn("Atracción iniciada");
+
 
 	// Callbacks
     tarjeteroSetCallbackCorrecto(nuevoPasajero);
@@ -71,10 +72,10 @@ void loop() {
 		nuevoPasajero();
 	}
 
-	if (pasajerosListos >= 1 && penduloListo) {
+	if (pasajerosListos >= 4 && penduloListo) {
 		atraccionIniciar();
 		penduloListo = false;
-		pasajerosListos -= 1;
+		pasajerosListos -= 4;
 	}
 
 }
