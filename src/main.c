@@ -27,7 +27,8 @@ void finalizado() {
 
 void emergencia() {
     tarjeteroParar();
-   // monederoParar();
+    monederoParar();
+	serialPrintLn("EMERGENCIA!!!!");
 }
 
 void setup() {

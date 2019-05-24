@@ -1,3 +1,27 @@
+/***********************************************************************************
+*
+* FICHERO: tarjetero.c
+*
+* DESCRIPCIÓN :
+* 	Contiene la funcionalidad del tarjetero. Implementada en 3 fases:
+*
+*	1 - Obtención de datos: en la interrupción guardamos el tiempo
+*       en un vector
+*   2 - Análisis de datos: comparamos los tiempos de cada intervalo para
+*       distinguir si es una raya larga o corta.
+*   3 - Comparación con patrones: cotejar los datos obtenidos 
+*       con las posibles tarjetas. En caso de una coincidencia mayor al 75%
+*       aceptamos la tarjeta y se lo notificamos al programa principal.
+*		También se enciende el led durante 1 segundo
+*
+* AUTORES:
+*
+* 	Laura Aguado Cabanillas	
+*	
+*   Héctor Gutiérrez Li
+*
+***********************************************************************************/
+
 #include "time.h"
 #include "macros.h"
 #include "pinout.h"
@@ -12,24 +36,28 @@
 #define CRT 1           //DEFINIMOS RAYAS CORTAS CON CÓDIGO 1
 #define HIGH 1
 #define LOW 0
-// Variables globales deben ser estáticas
+//Callback de nueva persona
 static void (*callback) ();
-
+// Variables globales deben ser estáticas
 static unsigned long flancos[61];  //Vector para guardar tiempos segun el flanco. Son 52 flancos y anadimos 2 por falsso flancos al inicio
 static unsigned long rayas[27];    //Vector con la duracion de cada rayas. Son 26 rayas y anadimos 1 por falsos flancos al inicio
 static unsigned binario[27];    //Para tener la tarjeta en binario. Son 26 rayas y anadimos 1 por falsos flancos al inicio
 static int flanco_actual;     //Vamos contando el numero de flancos que vamos detectando
 static int traduce;         //Bandera para empezar a traducir
 static uint16_t hexadecimal;
+//Patrones de tarjetas
 static uint16_t a[] = {0x1230, 0x4560, 0x7890, 0x0970, 0x5310, 0x6420};  //POSIBLES COMBINACIONES DE TARJETAS
 static uint16_t b[] = {123, 456, 789, 97, 531, 642};
+//Variables de control de led
 static int luz;
 static int encendido;
 static int n;
 static int falsoFlanco;
+//Variables auxiliares para división entera en ensamblador
 static uint8_t num;
 static uint8_t den;
-static uint8_t funciona = 1;
+//Bandera de funcionamiento normal o parada de emergencia
+static funciona = 1;
 
 
 ISR(SO1_vect) {
@@ -64,8 +92,8 @@ ISR(SO1_vect) {
     }
     flanco_actual++;
 }
-
-uint8_t whoMax(uint8_t *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN EL ÍNDICE CALCULADO
+//Devuelve mejor coincidencia (más peso) según el índice calculado
+uint8_t whoMax(uint8_t *c) {    
   uint8_t max = c[0];
   uint8_t who = 0;
   for (int i = 1; i < n;  i++) {
@@ -76,19 +104,21 @@ uint8_t whoMax(uint8_t *c) {    //DEVUELVE MEJOR COINCIDENCIA (MÁS PESO) SEGÚN
   }
   return who;
 }
-uint8_t sumData(uint16_t c) {   //NÚMERO DE '1' EN EL DATO C. USADO PARA CALCULAR COINCIDENCIAS
+//Número de '1' en el dato C. Se usa para calcular coincidencias
+uint8_t sumData(uint16_t c) {   
   uint8_t howmuch = 0;
   for (int i = 0; i < 16; i++) {
     howmuch += rbi(c, i);
   }
   return howmuch;
 }
+//Algoritmo de comparación
 void tanimoto() {
   uint8_t jaccard[n];
-  serialPrint("Pesos jaccard \t");
   for (int j = 0; j < n; j++) {
 	  num = sumData(a[j] & hexadecimal);
 	  den = (sumData(a[j] | hexadecimal));
+	  //Multiplicación del numerador x4 y división entera en ensamblador
 	  asm volatile (
     "push r17     \n"		//numerador
     "push r19     \n"		//denominador
@@ -121,11 +151,9 @@ void tanimoto() {
 	:"r"(num),"r"(den)		//Entradas (numerador, denominador)
   );
     //jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
-    serialPrintFloat(jaccard[j]);
-    serialPrint("\t");
   }
   flanco_actual = 0;
-  if ((jaccard[whoMax(jaccard)] >= 12)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
+  if ((jaccard[whoMax(jaccard)] >= 3)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
     //digitalWrite(S01, HIGH);
@@ -134,11 +162,14 @@ void tanimoto() {
     encendido = 1;
 	callback();
   }
+  else{
+  serialPrint("\t Tarjeta rechazada");
+  }
   serialPrint("\n");
 }
-
+//Pasar de un vector binario a un entero según el código de la tarjeta en hexadecimal
 void traduceHex() {
-  //Comprobamos que la tarjeta es válida (no se pasa al revés)
+  //Comprobamos que la tarjeta es válida
   hexadecimal = 0;
   for (int i = 10; i < 22; i++) {     //falso flanco
     if (binario[i]) {           //Sumamos 1 para evitar el falso flanco
@@ -146,27 +177,20 @@ void traduceHex() {
     }
   }
   hexadecimal &= 0xFFF0;
-  serialPrint("Traducido a hex:");
-  serialPrintULong(hexadecimal);
-  serialPrint("\n");
   tanimoto();
 }
-
+//Pasar de tiempos a rayas largas o cortas
 void traduceBin() {
-  serialPrint("Bin ");
   //int largo = 0;
   long limite = (rayas[25] + rayas[24] + rayas[23] + rayas[22] + rayas[7] + rayas[8] + rayas[9] + rayas[10]) / 8; //8 en vez de 3 por falso flanco al inicio
     for (int i = 2; i < 26; i++) {
       if (rayas[i] > (unsigned long int) limite) {
         binario[i] = LRG;
-        serialPrintInt(LRG);
       }
       else {
         binario[i] = CRT;
-        serialPrintInt(CRT);
       }
     }
-	serialPrint("\n");
 	traduceHex();
 }
 
@@ -176,6 +200,7 @@ void tarjeteroLoop(){
 		  traduceBin();
 		  traduce = 0;
 		}
+		//Apagar el led cuando corresponda
 		if (encendido && (millis() - luz >= 1000)) {
 		  cbi(OUTRUT, L1);
 		  encendido = 0;
@@ -199,11 +224,11 @@ void tarjeteroSetup() {
   n = 6;
   falsoFlanco= 0;
 }
-
+//Callback de nueva persona que entra
 void tarjeteroSetCallbackCorrecto(void(*f)()) {
 	callback = f;
 }
-
+//Función para parada de emergencia (que el tarjetero deje de funcionar)
 void tarjeteroParar() {
 	funciona = 0;
 	cbi(OUTRUT, L1);

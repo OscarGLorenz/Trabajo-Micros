@@ -36,7 +36,7 @@ void atraccionSetCallbackFinalizado(void(*f)()) {
 // Guardar callback de atraccion en emergencia
 static void (*emergencia) ();
 void atraccionSetCallbackEmergencia(void(*f)()) {
-    f = emergencia;
+	emergencia = f;
 }
 
 // Variables auxiliares para el encoder

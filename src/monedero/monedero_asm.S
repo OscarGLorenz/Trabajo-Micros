@@ -8,9 +8,9 @@
 .extern pin_sensor
 
 
-.global asmISRSO2
+.global asm_ISR_SO2
 
-	asmISRSO2:
+	asm_ISR_SO2:
 		PUSH R17
 		LDS R17, pin_sensor
 		ANDI R17, 0x02
@@ -52,9 +52,9 @@
 		POP R17
 		RET
 
-.global asmISRSO3
+.global asm_ISR_SO3
 		
-	asmISRSO3:
+	asm_ISR_SO3:
 		PUSH R17
 		LDS R17, pin_sensor
 		ANDI R17, 0x04
