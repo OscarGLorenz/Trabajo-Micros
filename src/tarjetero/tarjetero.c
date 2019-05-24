@@ -125,7 +125,7 @@ void tanimoto() {
     serialPrint("\t");
   }
   flanco_actual = 0;
-  if ((jaccard[whoMax(jaccard)] >= 12)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
+  if ((jaccard[whoMax(jaccard)] >= 3)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
     serialPrint("\t Tarjeta detectada: ");
     serialPrintInt(b[whoMax(jaccard)]);
     //digitalWrite(S01, HIGH);
