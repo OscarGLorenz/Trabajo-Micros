@@ -115,6 +115,7 @@ uint8_t sumData(uint16_t c) {
 //Algoritmo de comparación
 void tanimoto() {
   uint8_t jaccard[n];
+  serialPrint("Pesos jaccard \t");
   for (int j = 0; j < n; j++) {
 	  num = sumData(a[j] & hexadecimal);
 	  den = (sumData(a[j] | hexadecimal));
@@ -151,6 +152,8 @@ void tanimoto() {
 	:"r"(num),"r"(den)		//Entradas (numerador, denominador)
   );
     //jaccard[j] = sumData(a[j] & hexadecimal) / (float(sumData(a[j] | hexadecimal)));
+	serialPrintFloat(jaccard[j]);
+    serialPrint("\t");
   }
   flanco_actual = 0;
   if ((jaccard[whoMax(jaccard)] >= 3)) { //Si hay 1 letra mayor que D, descartamos mucho malo. Si no, todo bien.  Si se usa ensamblador, limite=3. Sin ensamblador, 0.75
