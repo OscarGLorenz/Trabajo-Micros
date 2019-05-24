@@ -200,7 +200,7 @@ void serialWatchdog(){
     if (rbi(RX_CHECK_REG, RX_CHECK_BIT)){
         serialReadString(command, 2000);
         serialPrint(command);
-        if(!strcmp(command,"cal")) { serialPrintLn(": CALIBRATE MODE"); calibrate = true; }
+        if(!strcmp(command,"cal")) { serialPrintLn(": CALIBRATE MODE"); calibrate = 1; }
         else if (!strcmp(command,"run")) { serialPrintLn(": RUN MODE"); calibrate = 2; }
         else if (!strcmp(command,"res")) { serialPrintLn(": RESET COIN LIMITS"); resetLimit(&coins[coin_id]); }
         else if (!strcmp(command,"all")) { serialPrintLn(": RESET COIN LIMITS"); printLimitsAll(); }
@@ -339,8 +339,8 @@ void monederoSetup() {
     payment_money = 0;
     wall = 0;
 
-    while(((CALIB_TIMEOUT - millis()) > 0) && calibrate != 2) serialWatchdog();		// Enable UART calibration for CALIB_TIMEOUT ms. Will lock in CAL mode if "cal"
-    while(calibrate == true) serialWatchdog();					// Will lock in CAL mode if "cal"
+    while(((CALIB_TIMEOUT - millis()) > 0) && (calibrate != 2)) serialWatchdog();		// Enable UART calibration for CALIB_TIMEOUT ms. Will lock in CAL mode if "cal"
+    while(calibrate == 1) serialWatchdog();					// Will lock in CAL mode if "cal"
     serialPrintLn("Monedero is running\n");
 }
 
