@@ -6,6 +6,7 @@
 * 	Contiene la funcionalidad de la atracción. Implementada como
 *	máquina de estados
 *
+* FUNCIONES :
 *
 * AUTORES:
 *

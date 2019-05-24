@@ -1,3 +1,15 @@
+
+/*************************************************************
+*
+* FICHERO: serial.h
+*
+* DESCRIPCIÓN :
+* 	Contiene las macros necesarias para la inicialización del Serial y los prototipos de las funciones Serial.
+*	
+*
+*************************************************************/
+
+
 #ifndef SERIAL_H_
 #define SERIAL_H_
 
