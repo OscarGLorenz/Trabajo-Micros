@@ -388,7 +388,7 @@ ISR(SO5_vect) {
 
 // Led 4
 static bool L4on = true;	// Estado del led
-static unsigned int L4tiempo = 0 ;	// Variable para controlar el parpadeo
+static unsigned long L4tiempo = 0 ;	// Variable para controlar el parpadeo
 // Esta función se llama periodicamente con un tiempo de on y de off
 void parpadearL4(unsigned int on, unsigned int off) {
 	// En función del estado
@@ -438,7 +438,7 @@ void atraccionLoop() {
 
 		case CARGA :
 		// Espera 10s para cambiar al modo cuelfa
-		if (millis() - auxTime > 100 ){
+		if (millis() - auxTime > 10000 ){
 			mode = CUELGA;
 			// Encendemos motor y apagamos luz.
 			sbi(OUTRUT,M2_en);
@@ -475,6 +475,11 @@ void atraccionLoop() {
 		// Si llevamos 100s aqui, pasamos a frena
 		if (millis() - auxTime > 100000 ) {
                 mode = FRENA;
+                // Cambiamos de dirección para frenar
+                dir = !dir;
+                tbi(OUTRUT,M2_di); // Toggle M2_dir
+                // Nos guardamos el tiempo
+                auxTime = millis();
 		}
 		break;
 

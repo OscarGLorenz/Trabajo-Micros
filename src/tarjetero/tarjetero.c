@@ -50,7 +50,7 @@ static uint16_t a[] = {0x1230, 0x4560, 0x7890, 0x0970, 0x5310, 0x6420};  //POSIB
 static uint8_t abono[] = {1, 2, 3, 4, 5, 6};
 static uint16_t b[] = {123, 456, 789, 97, 531, 642};
 //Variables de control de led
-static int luz;
+static long int luz;
 static int encendido;
 static int n;
 static int falsoFlanco;
